@@ -1,0 +1,59 @@
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import { connectDB } from './src/config/db.js';
+import { errorHandler } from './src/middleware/errorHandler.js';
+import chatRoutes from './src/routes/chatRoutes.js';
+import notesRoutes from './src/routes/notesRoutes.js';
+import folderRoutes from './src/routes/folderRoutes.js';
+import userRoutes from './src/routes/userRoutes.js';
+import webhookRoutes from './src/routes/webhookRoutes.js';
+import youtubeRoutes from './src/routes/youtubeRoutes.js';
+import quizRoutes from './src/routes/quizRoutes.js';
+import plannerRoutes from './src/routes/plannerRoutes.js';
+import dashboardRoutes from './src/routes/dashboardRoutes.js';
+import searchRoutes from './src/routes/searchRoutes.js';
+import adminRoutes from './src/routes/adminRoutes.js';
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+// Middleware
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production'
+    ? process.env.CLIENT_URL
+    : 'http://localhost:3000',
+  credentials: true,
+}));
+app.use(morgan('dev'));
+app.use(express.json({ limit: '10mb' }));
+
+// Routes
+app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date() }));
+app.use('/api/chat', chatRoutes);
+app.use('/api/notes', notesRoutes);
+app.use('/api/folders', folderRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/webhooks', webhookRoutes);
+app.use('/api/youtube', youtubeRoutes);
+app.use('/api/quiz', quizRoutes);
+app.use('/api/planner', plannerRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/search', searchRoutes);
+app.use('/api/admin', adminRoutes);
+
+// Error handling
+app.use(errorHandler);
+
+// Start server
+const start = async () => {
+  await connectDB();
+  app.listen(PORT, () => {
+    console.log(`🚀 NoteNova API running on port ${PORT}`);
+  });
+};
+
+start().catch(console.error);
