@@ -11,14 +11,16 @@ export const globalSearch = async (req, res) => {
     }
 
     const userId = req.userId;
-    const regex = new RegExp(q.trim(), 'i');
+    const searchTerm = q.trim();
+    const regex = new RegExp(searchTerm, 'i');
 
     const [notes, chats, quizzes, plans] = await Promise.all([
       Note.find({
         userId,
+        isDeleted: { $ne: true },
         $or: [
+          { $text: { $search: searchTerm } },
           { title: regex },
-          { content: regex },
           { subject: regex },
           { tags: regex },
         ],
@@ -29,7 +31,8 @@ export const globalSearch = async (req, res) => {
 
       Chat.find({
         userId,
-        $or: [{ title: regex }],
+        isDeleted: { $ne: true },
+        $or: [{ $text: { $search: searchTerm } }, { title: regex }],
       })
         .select('title mode updatedAt')
         .sort({ updatedAt: -1 })
@@ -37,7 +40,8 @@ export const globalSearch = async (req, res) => {
 
       Quiz.find({
         userId,
-        $or: [{ title: regex }, { subject: regex }],
+        isDeleted: { $ne: true },
+        $or: [{ $text: { $search: searchTerm } }, { title: regex }, { subject: regex }],
       })
         .select('title subject difficulty createdAt')
         .sort({ createdAt: -1 })

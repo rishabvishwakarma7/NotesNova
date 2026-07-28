@@ -11,15 +11,18 @@ router.post('/clerk', async (req, res) => {
   try {
     let evt;
 
-    if (webhookSecret) {
+    if (!webhookSecret) {
+      if (process.env.NODE_ENV === 'production') {
+        return res.status(503).json({ error: 'Webhook secret not configured on server' });
+      }
+      evt = req.body;
+    } else {
       const wh = new Webhook(webhookSecret);
       evt = wh.verify(JSON.stringify(req.body), {
         'svix-id': req.headers['svix-id'],
         'svix-timestamp': req.headers['svix-timestamp'],
         'svix-signature': req.headers['svix-signature'],
       });
-    } else {
-      evt = req.body;
     }
 
     const eventType = evt.type;

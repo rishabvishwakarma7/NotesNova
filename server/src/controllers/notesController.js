@@ -1,4 +1,4 @@
-import { generateText } from '../config/gemini.js';
+import { generateTextWithProvider } from '../config/aiProvider.js';
 import Note from '../models/Note.js';
 
 const NOTE_TYPE_PROMPTS = {
@@ -16,7 +16,7 @@ const NOTE_TYPE_PROMPTS = {
 
 export const generateNotes = async (req, res) => {
   try {
-    const { topic, type = 'detailed', subject = '' } = req.body;
+    const { topic, type = 'detailed', subject = '', provider = 'groq' } = req.body;
     if (!topic) return res.status(400).json({ error: 'Topic is required' });
 
     const prompt = NOTE_TYPE_PROMPTS[type] || NOTE_TYPE_PROMPTS.detailed;
@@ -25,8 +25,8 @@ export const generateNotes = async (req, res) => {
     const systemPrompt = `You are NoteNova AI, a study notes generator. ${prompt}`;
     const userPrompt = `Topic: ${topic}${subjectContext}`;
 
-    const content = await generateText(systemPrompt, userPrompt);
-    res.json({ content, topic, type });
+    const content = await generateTextWithProvider(systemPrompt, userPrompt, provider);
+    res.json({ content, topic, type, provider });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -34,7 +34,7 @@ export const generateNotes = async (req, res) => {
 
 export const aiTransform = async (req, res) => {
   try {
-    const { content, action } = req.body;
+    const { content, action, provider = 'groq' } = req.body;
     if (!content || !action) return res.status(400).json({ error: 'Content and action required' });
 
     const actions = {
@@ -50,7 +50,7 @@ export const aiTransform = async (req, res) => {
     const systemPrompt = 'You are NoteNova AI. Respond in clean markdown format.';
     const userPrompt = `${actionPrompt}\n\n${content}`;
 
-    const result = await generateText(systemPrompt, userPrompt);
+    const result = await generateTextWithProvider(systemPrompt, userPrompt, provider);
     res.json({ content: result });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -59,10 +59,36 @@ export const aiTransform = async (req, res) => {
 
 export const getNotes = async (req, res) => {
   try {
-    const notes = await Note.find({ userId: req.userId })
-      .select('title subject tags isPinned noteType createdAt updatedAt')
-      .sort({ isPinned: -1, updatedAt: -1 });
-    res.json(notes);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const subject = req.query.subject || '';
+    const search = req.query.search || '';
+
+    const query = { userId: req.userId, isDeleted: { $ne: true } };
+    if (subject) query.subject = subject;
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { subject: { $regex: search, $options: 'i' } },
+        { tags: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const [notes, total] = await Promise.all([
+      Note.find(query)
+        .select('title subject tags isPinned noteType createdAt updatedAt')
+        .sort({ isPinned: -1, updatedAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit),
+      Note.countDocuments(query),
+    ]);
+
+    res.json({
+      notes,
+      total,
+      page,
+      pages: Math.ceil(total / limit),
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -70,7 +96,7 @@ export const getNotes = async (req, res) => {
 
 export const getNote = async (req, res) => {
   try {
-    const note = await Note.findOne({ _id: req.params.id, userId: req.userId });
+    const note = await Note.findOne({ _id: req.params.id, userId: req.userId, isDeleted: { $ne: true } });
     if (!note) return res.status(404).json({ error: 'Note not found' });
     res.json(note);
   } catch (err) {
@@ -87,10 +113,29 @@ export const createNote = async (req, res) => {
   }
 };
 
+export const importMarkdown = async (req, res) => {
+  try {
+    const { title = 'Imported Note', markdown = '', subject = '' } = req.body;
+    if (!markdown.trim()) return res.status(400).json({ error: 'Markdown content is required' });
+
+    const note = await Note.create({
+      userId: req.userId,
+      title: title.trim(),
+      content: markdown,
+      subject,
+      noteType: 'custom',
+    });
+
+    res.status(201).json(note);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 export const updateNote = async (req, res) => {
   try {
     const note = await Note.findOneAndUpdate(
-      { _id: req.params.id, userId: req.userId },
+      { _id: req.params.id, userId: req.userId, isDeleted: { $ne: true } },
       req.body,
       { new: true }
     );
@@ -101,10 +146,16 @@ export const updateNote = async (req, res) => {
   }
 };
 
+// Soft delete
 export const deleteNote = async (req, res) => {
   try {
-    await Note.findOneAndDelete({ _id: req.params.id, userId: req.userId });
-    res.json({ message: 'Note deleted' });
+    const note = await Note.findOneAndUpdate(
+      { _id: req.params.id, userId: req.userId },
+      { isDeleted: true, deletedAt: new Date() },
+      { new: true }
+    );
+    if (!note) return res.status(404).json({ error: 'Note not found' });
+    res.json({ message: 'Note moved to trash', noteId: note._id });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

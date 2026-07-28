@@ -1,4 +1,4 @@
-import { generateTextStream } from '../config/gemini.js';
+import { generateTextStreamWithProvider } from '../config/aiProvider.js';
 import Chat from '../models/Chat.js';
 
 const MODE_PROMPTS = {
@@ -11,7 +11,7 @@ const MODE_PROMPTS = {
 
 export const streamChat = async (req, res) => {
   try {
-    const { messages, mode = 'study' } = req.body;
+    const { messages, mode = 'study', provider = 'groq' } = req.body;
     if (!messages || !messages.length) {
       return res.status(400).json({ error: 'Messages are required' });
     }
@@ -21,7 +21,7 @@ export const streamChat = async (req, res) => {
     res.setHeader('Connection', 'keep-alive');
 
     const systemPrompt = MODE_PROMPTS[mode] || MODE_PROMPTS.study;
-    const stream = await generateTextStream(systemPrompt, messages);
+    const stream = await generateTextStreamWithProvider(systemPrompt, messages, provider);
 
     for await (const chunk of stream) {
       const content = chunk.text();
@@ -51,10 +51,21 @@ export const streamChat = async (req, res) => {
 
 export const getChats = async (req, res) => {
   try {
-    const chats = await Chat.find({ userId: req.userId })
-      .select('title mode isPinned createdAt updatedAt')
-      .sort({ isPinned: -1, updatedAt: -1 });
-    res.json(chats);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+
+    const query = { userId: req.userId, isDeleted: { $ne: true } };
+
+    const [chats, total] = await Promise.all([
+      Chat.find(query)
+        .select('title mode isPinned createdAt updatedAt')
+        .sort({ isPinned: -1, updatedAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit),
+      Chat.countDocuments(query),
+    ]);
+
+    res.json({ chats, total, page, pages: Math.ceil(total / limit) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -62,7 +73,7 @@ export const getChats = async (req, res) => {
 
 export const getChat = async (req, res) => {
   try {
-    const chat = await Chat.findOne({ _id: req.params.id, userId: req.userId });
+    const chat = await Chat.findOne({ _id: req.params.id, userId: req.userId, isDeleted: { $ne: true } });
     if (!chat) return res.status(404).json({ error: 'Chat not found' });
     res.json(chat);
   } catch (err) {
@@ -83,7 +94,7 @@ export const saveChat = async (req, res) => {
 export const updateChat = async (req, res) => {
   try {
     const chat = await Chat.findOneAndUpdate(
-      { _id: req.params.id, userId: req.userId },
+      { _id: req.params.id, userId: req.userId, isDeleted: { $ne: true } },
       req.body,
       { new: true }
     );
@@ -96,8 +107,13 @@ export const updateChat = async (req, res) => {
 
 export const deleteChat = async (req, res) => {
   try {
-    await Chat.findOneAndDelete({ _id: req.params.id, userId: req.userId });
-    res.json({ message: 'Chat deleted' });
+    const chat = await Chat.findOneAndUpdate(
+      { _id: req.params.id, userId: req.userId },
+      { isDeleted: true, deletedAt: new Date() },
+      { new: true }
+    );
+    if (!chat) return res.status(404).json({ error: 'Chat not found' });
+    res.json({ message: 'Chat moved to trash', chatId: chat._id });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -4,16 +4,21 @@ import User from '../models/User.js';
 export const syncUser = async (req, res) => {
   try {
     const { clerkId, name, email, profileImage } = req.body;
+    const targetClerkId = req.userId || clerkId;
 
-    if (!clerkId || !email) {
+    if (!targetClerkId || !email) {
       return res.status(400).json({ error: 'clerkId and email are required' });
+    }
+
+    if (req.userId && clerkId && req.userId !== clerkId) {
+      return res.status(403).json({ error: 'Forbidden: Cannot sync another user profile' });
     }
 
     // Upsert: create if not exists, update if exists
     const user = await User.findOneAndUpdate(
-      { clerkId },
+      { clerkId: targetClerkId },
       {
-        clerkId,
+        clerkId: targetClerkId,
         name: name || 'User',
         email,
         profileImage: profileImage || '',
@@ -21,7 +26,7 @@ export const syncUser = async (req, res) => {
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
-    console.log(`✅ User synced: ${email} (${clerkId})`);
+    console.log(`✅ User synced: ${email} (${targetClerkId})`);
     res.json({ success: true, user });
   } catch (err) {
     console.error('❌ User sync error:', err.message);

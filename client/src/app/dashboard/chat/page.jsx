@@ -1,5 +1,9 @@
 import ChatWindow from '@/components/chat/ChatWindow';
 
 export default function ChatPage() {
-  return <ChatWindow />;
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <ChatWindow />
+    </div>
+  );
 }

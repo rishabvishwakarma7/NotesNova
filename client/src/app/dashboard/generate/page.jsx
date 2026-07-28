@@ -5,13 +5,15 @@ import { motion } from 'framer-motion';
 import {
   Wand2, FileText, List, Target, BookOpen, HelpCircle,
   CheckSquare, ClipboardList, Sparkles, Loader2, ArrowRight,
-  Zap, ListOrdered, Brain, Minimize2, Maximize2, Layers, Download
+  Zap, ListOrdered, Brain, Minimize2, Maximize2, Layers, Download, Check
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import GlassCard from '@/components/ui/GlassCard';
 import { exportToPdf } from '@/utils/exportPdf';
 import api from '@/services/api';
+import { marked } from 'marked';
+import { useToast } from '@/components/ui/Toast';
 
 const noteTypes = [
   { id: 'detailed', label: 'Full Detailed', icon: FileText, color: '#8B5CF6' },
@@ -42,8 +44,10 @@ export default function GeneratePage() {
   const [loading, setLoading] = useState(false);
   const [transforming, setTransforming] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const contentRef = useRef(null);
-
+  const { toast } = useToast();
   const handleGenerate = async () => {
     if (!topic.trim()) return;
     setLoading(true);
@@ -69,6 +73,29 @@ export default function GeneratePage() {
       // Keep existing content on error
     }
     setTransforming('');
+  };
+
+  const handleSaveNote = async () => {
+    if (!generated || saving) return;
+    setSaving(true);
+    try {
+      // Convert markdown → HTML so it renders correctly in the editor
+      const html = marked.parse(generated, { breaks: true, gfm: true });
+      await api.post('/notes', {
+        title: topic || 'Generated Note',
+        content: html,
+        subject: subject || '',
+        noteType: type,
+        tags: subject ? [subject] : [],
+      });
+      setSaved(true);
+      toast({ message: 'Saved to My Notes!', type: 'success' });
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      console.error('Save failed:', err);
+      toast({ message: 'Failed to save note', type: 'error' });
+    }
+    setSaving(false);
   };
 
   return (
@@ -208,12 +235,16 @@ export default function GeneratePage() {
           </GlassCard>
 
           {generated && (
-            <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
-              <button className="btn-primary" style={{
-                padding: '12px 24px', fontSize: 14,
-                display: 'flex', alignItems: 'center', gap: 8,
-              }}>
-                <FileText size={16} /> Save as Note
+            <div style={{ display: 'flex', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
+              <button
+                onClick={handleSaveNote}
+                disabled={saving || saved}
+                className="btn-primary"
+                style={{ padding: '12px 24px', fontSize: 14, display: 'flex', alignItems: 'center', gap: 8,
+                  opacity: saving ? 0.7 : 1 }}>
+                {saving ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> :
+                 saved ? <Check size={16} /> : <FileText size={16} />}
+                {saving ? 'Saving…' : saved ? 'Saved to Notes! ✓' : 'Save as Note'}
               </button>
               <button
                 onClick={async () => {

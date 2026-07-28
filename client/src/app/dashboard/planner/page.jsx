@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CalendarDays, Sparkles, Loader2, Plus, Clock, BookOpen, Target,
@@ -17,13 +18,13 @@ const typeConfig = {
 };
 
 export default function PlannerPage() {
-  const [view, setView] = useState('list'); // list | create | detail
+  const [view, setView] = useState('list');
   const [plans, setPlans] = useState([]);
   const [loadingPlans, setLoadingPlans] = useState(false);
   const [plan, setPlan] = useState(null);
   const [expandedDays, setExpandedDays] = useState(new Set());
+  const searchParams = useSearchParams();
 
-  // Create form
   const [title, setTitle] = useState('');
   const [examDate, setExamDate] = useState('');
   const [subjectInput, setSubjectInput] = useState('');
@@ -34,6 +35,14 @@ export default function PlannerPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => { loadPlans(); }, []);
+
+  // Fix #4: Load plan from URL param ?id=xxx
+  useEffect(() => {
+    const id = searchParams?.get('id');
+    if (id && plans.length > 0) {
+      handleLoadPlan(id);
+    }
+  }, [searchParams, plans.length]);
 
   const loadPlans = async () => {
     setLoadingPlans(true);

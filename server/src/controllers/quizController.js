@@ -1,9 +1,9 @@
-import { generateText } from '../config/gemini.js';
+import { generateTextWithProvider } from '../config/aiProvider.js';
 import Quiz from '../models/Quiz.js';
 
 export const generateQuiz = async (req, res) => {
   try {
-    const { topic, subject = '', questionCount = 10, difficulty = 'medium' } = req.body;
+    const { topic, subject = '', questionCount = 10, difficulty = 'medium', provider = 'groq' } = req.body;
     if (!topic) return res.status(400).json({ error: 'Topic is required' });
 
     const difficultyDesc = {
@@ -37,10 +37,9 @@ Rules:
 
     const userPrompt = `Generate a ${difficulty} quiz about: ${topic}${subjectCtx}`;
 
-    let content = await generateText(systemPrompt, userPrompt);
-    // Strip markdown code fences if present
+    let content = await generateTextWithProvider(systemPrompt, userPrompt, provider);
     content = content.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
-    
+
     let parsed;
     try {
       parsed = JSON.parse(content);
@@ -66,7 +65,7 @@ Rules:
 export const submitQuiz = async (req, res) => {
   try {
     const { answers } = req.body;
-    const quiz = await Quiz.findOne({ _id: req.params.id, userId: req.userId });
+    const quiz = await Quiz.findOne({ _id: req.params.id, userId: req.userId, isDeleted: { $ne: true } });
     if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
 
     let score = 0;
@@ -90,11 +89,11 @@ export const submitQuiz = async (req, res) => {
 
 export const getQuizzes = async (req, res) => {
   try {
-    const quizzes = await Quiz.find({ userId: req.userId })
+    const quizzes = await Quiz.find({ userId: req.userId, isDeleted: { $ne: true } })
       .select('title subject difficulty questions attempts createdAt')
       .sort({ createdAt: -1 });
 
-    const mapped = quizzes.map(q => ({
+    const mapped = quizzes.map((q) => ({
       _id: q._id,
       title: q.title,
       subject: q.subject,
@@ -102,7 +101,7 @@ export const getQuizzes = async (req, res) => {
       questionCount: q.questions.length,
       attemptCount: q.attempts.length,
       bestScore: q.attempts.length > 0
-        ? Math.max(...q.attempts.map(a => Math.round((a.score / a.total) * 100)))
+        ? Math.max(...q.attempts.map((a) => Math.round((a.score / a.total) * 100)))
         : null,
       lastAttempt: q.attempts.length > 0 ? q.attempts[q.attempts.length - 1].completedAt : null,
       createdAt: q.createdAt,
@@ -116,7 +115,7 @@ export const getQuizzes = async (req, res) => {
 
 export const getQuiz = async (req, res) => {
   try {
-    const quiz = await Quiz.findOne({ _id: req.params.id, userId: req.userId });
+    const quiz = await Quiz.findOne({ _id: req.params.id, userId: req.userId, isDeleted: { $ne: true } });
     if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
     res.json(quiz);
   } catch (err) {
@@ -124,10 +123,16 @@ export const getQuiz = async (req, res) => {
   }
 };
 
+// Soft delete
 export const deleteQuiz = async (req, res) => {
   try {
-    await Quiz.findOneAndDelete({ _id: req.params.id, userId: req.userId });
-    res.json({ message: 'Quiz deleted' });
+    const quiz = await Quiz.findOneAndUpdate(
+      { _id: req.params.id, userId: req.userId },
+      { isDeleted: true, deletedAt: new Date() },
+      { new: true }
+    );
+    if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
+    res.json({ message: 'Quiz moved to trash', quizId: quiz._id });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -135,15 +140,15 @@ export const deleteQuiz = async (req, res) => {
 
 export const getQuizStats = async (req, res) => {
   try {
-    const quizzes = await Quiz.find({ userId: req.userId }).select('attempts difficulty');
+    const quizzes = await Quiz.find({ userId: req.userId, isDeleted: { $ne: true } }).select('attempts difficulty');
     const totalQuizzes = quizzes.length;
-    const allAttempts = quizzes.flatMap(q => q.attempts);
+    const allAttempts = quizzes.flatMap((q) => q.attempts);
     const totalAttempts = allAttempts.length;
     const avgScore = totalAttempts > 0
       ? Math.round(allAttempts.reduce((sum, a) => sum + (a.score / a.total) * 100, 0) / totalAttempts)
       : 0;
     const bestScore = totalAttempts > 0
-      ? Math.round(Math.max(...allAttempts.map(a => (a.score / a.total) * 100)))
+      ? Math.round(Math.max(...allAttempts.map((a) => (a.score / a.total) * 100)))
       : 0;
 
     res.json({ totalQuizzes, totalAttempts, avgScore, bestScore });

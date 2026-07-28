@@ -22,8 +22,11 @@ const quizSchema = new mongoose.Schema({
   difficulty: { type: String, enum: ['easy', 'medium', 'hard'], default: 'medium' },
   questions: [questionSchema],
   attempts: [attemptSchema],
+  isDeleted: { type: Boolean, default: false, index: true },
+  deletedAt: { type: Date, default: null },
 }, { timestamps: true });
 
 quizSchema.index({ userId: 1, createdAt: -1 });
+quizSchema.index({ title: 'text', subject: 'text' });
 
 export default mongoose.model('Quiz', quizSchema);

@@ -1,12 +1,23 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { aiLimiter } from '../middleware/rateLimiter.js';
-import { generateNotes, aiTransform, getNotes, getNote, createNote, updateNote, deleteNote } from '../controllers/notesController.js';
+import { validateNoteGeneration, validateNoteTransform } from '../middleware/validate.js';
+import {
+  generateNotes,
+  aiTransform,
+  getNotes,
+  getNote,
+  createNote,
+  importMarkdown,
+  updateNote,
+  deleteNote,
+} from '../controllers/notesController.js';
 
 const router = Router();
 
-router.post('/generate', requireAuth, aiLimiter, generateNotes);
-router.post('/transform', requireAuth, aiLimiter, aiTransform);
+router.post('/generate', requireAuth, aiLimiter, validateNoteGeneration, generateNotes);
+router.post('/transform', requireAuth, aiLimiter, validateNoteTransform, aiTransform);
+router.post('/import/markdown', requireAuth, importMarkdown);
 router.get('/', requireAuth, getNotes);
 router.get('/:id', requireAuth, getNote);
 router.post('/', requireAuth, createNote);

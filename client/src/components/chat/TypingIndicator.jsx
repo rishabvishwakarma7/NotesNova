@@ -4,29 +4,29 @@ import { Sparkles } from 'lucide-react';
 
 export default function TypingIndicator() {
   return (
-    <div style={{ display: 'flex', gap: 12 }}>
-      <div style={{
-        width: 32, height: 32, borderRadius: 10,
-        background: 'var(--gradient-primary)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        flexShrink: 0,
-      }}>
-        <Sparkles size={16} color="white" />
+    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+      <div style={{ width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+        background: 'var(--gradient-ai)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
+        <Sparkles size={13} color="white" />
       </div>
-      <div className="msg-ai" style={{ padding: '16px 20px' }}>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          {[0, 1, 2].map(i => (
-            <div
-              key={i}
-              style={{
-                width: 8, height: 8, borderRadius: '50%',
-                background: '#8B5CF6',
-                animation: `typing-dots 1.4s infinite`,
-                animationDelay: `${i * 0.2}s`,
-              }}
-            />
-          ))}
-        </div>
+      <div style={{ padding: '10px 14px', borderRadius: '14px 14px 14px 4px',
+        background: 'var(--bg-card)', border: '1px solid var(--border-color)',
+        display: 'flex', alignItems: 'center', gap: 5 }}>
+        <style>{`
+          @keyframes bounce-dot {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30% { transform: translateY(-4px); opacity: 1; }
+          }
+        `}</style>
+        {[0, 1, 2].map(i => (
+          <div key={i} style={{
+            width: 7, height: 7, borderRadius: '50%',
+            background: 'var(--color-ai)',
+            animation: 'bounce-dot 1.3s ease-in-out infinite',
+            animationDelay: `${i * 0.18}s`,
+          }} />
+        ))}
       </div>
     </div>
   );

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, FileText, MessageSquare, Brain, BarChart3, Activity,
   LogOut, RefreshCw, Search, ChevronLeft, ChevronRight, ShieldCheck,
-  CalendarDays, Zap, ArrowLeft, X,
+  CalendarDays, Zap, ArrowLeft, X, Star, MessageCircle, CheckCircle2, Trash2,
 } from 'lucide-react';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
@@ -328,12 +328,14 @@ export default function AdminPanel() {
   const [users, setUsers] = useState(null);
   const [activity, setActivity] = useState(null);
   const [chats, setChats] = useState(null);
+  const [feedback, setFeedback] = useState(null);
   const [loading, setLoading] = useState(false);
   const [userSearch, setUserSearch] = useState('');
   const [userPage, setUserPage] = useState(1);
   const [chatPage, setChatPage] = useState(1);
   const [chatSearch, setChatSearch] = useState('');
   const [chatMode, setChatMode] = useState('');
+  const [fbFilter, setFbFilter] = useState('');
   const [selectedChat, setSelectedChat] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -349,10 +351,12 @@ export default function AdminPanel() {
   const fetchActivity = useCallback(async () => { const r = await fetch(`${API}/admin/activity?limit=80`, { headers:hdrs() }); if (r.ok) setActivity(await r.json()); }, [hdrs]);
   const fetchUsers    = useCallback(async (page=1,search='') => { const r = await fetch(`${API}/admin/users?page=${page}&limit=20&search=${encodeURIComponent(search)}`, { headers:hdrs() }); if (r.ok) setUsers(await r.json()); }, [hdrs]);
   const fetchChats    = useCallback(async (page=1,search='',mode='') => { const params = new URLSearchParams({page,limit:20,search,mode}); const r = await fetch(`${API}/admin/chats?${params}`, { headers:hdrs() }); if (r.ok) setChats(await r.json()); }, [hdrs]);
+  const fetchFeedback = useCallback(async (type='') => { const params = new URLSearchParams(type ? {type} : {}); const r = await fetch(`${API}/feedback/admin?${params}`, { headers:hdrs() }); if (r.ok) setFeedback(await r.json()); }, [hdrs]);
 
   useEffect(() => { if (!token) return; setLoading(true); Promise.all([fetchStats(), fetchActivity()]).finally(() => setLoading(false)); }, [token, refreshKey, fetchStats, fetchActivity]);
   useEffect(() => { if (!token || tab !== 'users' || selectedUser) return; fetchUsers(userPage, userSearch); }, [token, tab, userPage, userSearch, refreshKey, selectedUser, fetchUsers]);
   useEffect(() => { if (!token || tab !== 'chats') return; fetchChats(chatPage, chatSearch, chatMode); }, [token, tab, chatPage, chatSearch, chatMode, refreshKey, fetchChats]);
+  useEffect(() => { if (!token || tab !== 'feedback') return; fetchFeedback(fbFilter); }, [token, tab, fbFilter, refreshKey, fetchFeedback]);
 
   if (!token) return <LoginScreen onLogin={(t) => { sessionStorage.setItem('admin_token',t); setToken(t); }} />;
 
@@ -361,6 +365,7 @@ export default function AdminPanel() {
     { id:'users',    label:'Users',     icon:Users },
     { id:'chats',    label:'AI Chats',  icon:MessageSquare },
     { id:'activity', label:'Activity',  icon:Activity },
+    { id:'feedback', label:'Feedback',  icon:MessageCircle },
   ];
 
   return (
@@ -619,6 +624,104 @@ export default function AdminPanel() {
                     })}
                   </div>
                 ) : <p style={{ color:'var(--text-muted)', fontSize:14 }}>Loading activity…</p>}
+              </motion.div>
+            )}
+
+            {/* FEEDBACK */}
+            {tab === 'feedback' && (
+              <motion.div key="feedback" initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:24, flexWrap:'wrap', gap:12 }}>
+                  <div>
+                    <h2 style={{ fontSize:22, fontWeight:800, color:'var(--text-primary)' }}>User Feedback</h2>
+                    {feedback && <p style={{ fontSize:13, color:'var(--text-muted)', marginTop:4 }}>
+                      {feedback.newCount} new · Avg rating: {feedback.avgRating ? `${feedback.avgRating}⭐` : 'N/A'}
+                    </p>}
+                  </div>
+                  <div style={{ display:'flex', gap:8 }}>
+                    {[['','All'],['bug','🐛 Bugs'],['feature','💡 Features'],['praise','🌟 Praise'],['general','💬 General']].map(([id,label]) => (
+                      <button key={id} onClick={() => setFbFilter(id)}
+                        style={{ padding:'7px 12px', borderRadius:10, border:'none', cursor:'pointer', fontSize:12, fontWeight:600,
+                          background: fbFilter===id ? 'linear-gradient(135deg,rgba(139,92,246,0.2),rgba(6,182,212,0.15))' : 'var(--bg-tertiary)',
+                          color: fbFilter===id ? '#A78BFA' : 'var(--text-muted)',
+                          border: fbFilter===id ? '1px solid rgba(139,92,246,0.3)' : '1px solid var(--border-color)' }}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Stats row */}
+                {feedback && (
+                  <div style={{ display:'flex', gap:12, marginBottom:24, flexWrap:'wrap' }}>
+                    {[['bug','🐛','#F43F5E'],['feature','💡','#8B5CF6'],['praise','🌟','#10B981'],['general','💬','#06B6D4']].map(([type,icon,color]) => (
+                      <div key={type} style={{ padding:'10px 16px', borderRadius:12, background:`${color}10`, border:`1px solid ${color}25` }}>
+                        <span style={{ fontSize:12, color:'var(--text-muted)' }}>{icon} {type} </span>
+                        <span style={{ fontWeight:800, color }}>{feedback.stats?.[type] || 0}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {feedback ? (
+                  <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                    {feedback.items?.map(fb => {
+                      const typeColors = { bug:'#F43F5E', feature:'#8B5CF6', praise:'#10B981', general:'#06B6D4' };
+                      const color = typeColors[fb.type] || '#06B6D4';
+                      return (
+                        <div key={fb._id} style={{ padding:'16px 18px', borderRadius:14,
+                          background:'var(--bg-secondary)', border:`1px solid ${color}20` }}>
+                          <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, marginBottom:10 }}>
+                            <div style={{ flex:1 }}>
+                              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6, flexWrap:'wrap' }}>
+                                <span style={{ fontSize:11, fontWeight:700, color, background:`${color}15`,
+                                  padding:'2px 8px', borderRadius:6, textTransform:'capitalize' }}>{fb.type}</span>
+                                {fb.rating && (
+                                  <span style={{ fontSize:12, color:'#F59E0B' }}>{'★'.repeat(fb.rating)}{'☆'.repeat(5-fb.rating)}</span>
+                                )}
+                                <span style={{ fontSize:11, color:'var(--text-muted)' }}>{fb.name}</span>
+                                {fb.page && <span style={{ fontSize:11, color:'var(--text-muted)' }}>· {fb.page}</span>}
+                                <span style={{ fontSize:11, padding:'2px 8px', borderRadius:6,
+                                  background: fb.status==='new' ? '#F43F5E15' : fb.status==='resolved' ? '#10B98115' : '#F59E0B15',
+                                  color: fb.status==='new' ? '#F43F5E' : fb.status==='resolved' ? '#10B981' : '#F59E0B',
+                                  fontWeight:600, textTransform:'capitalize' }}>{fb.status}</span>
+                              </div>
+                              <p style={{ fontSize:14, color:'var(--text-primary)', lineHeight:1.6 }}>{fb.message}</p>
+                            </div>
+                            <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+                              <select value={fb.status}
+                                onChange={async e => {
+                                  await fetch(`${API}/feedback/admin/${fb._id}`, { method:'PATCH', headers:{...hdrs(),'Content-Type':'application/json'}, body:JSON.stringify({status:e.target.value}) });
+                                  fetchFeedback(fbFilter);
+                                }}
+                                style={{ padding:'4px 8px', borderRadius:8, fontSize:11, background:'var(--bg-tertiary)',
+                                  border:'1px solid var(--border-color)', color:'var(--text-primary)', outline:'none' }}>
+                                <option value="new">New</option>
+                                <option value="reviewed">Reviewed</option>
+                                <option value="resolved">Resolved</option>
+                              </select>
+                              <button onClick={async () => {
+                                await fetch(`${API}/feedback/admin/${fb._id}`, { method:'DELETE', headers:hdrs() });
+                                fetchFeedback(fbFilter);
+                              }} style={{ width:28, height:28, borderRadius:8, background:'rgba(244,63,94,0.1)',
+                                border:'none', display:'flex', alignItems:'center', justifyContent:'center',
+                                cursor:'pointer', color:'#F43F5E' }}>
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </div>
+                          <p style={{ fontSize:11, color:'var(--text-muted)' }}>
+                            {new Date(fb.createdAt).toLocaleDateString('en-US',{ month:'short', day:'numeric', year:'numeric' })}
+                            {' '}{new Date(fb.createdAt).toLocaleTimeString('en-US',{ hour:'2-digit', minute:'2-digit' })}
+                            {fb.email && ` · ${fb.email}`}
+                          </p>
+                        </div>
+                      );
+                    })}
+                    {!feedback.items?.length && (
+                      <p style={{ color:'var(--text-muted)', fontSize:14, padding:32, textAlign:'center' }}>No feedback yet.</p>
+                    )}
+                  </div>
+                ) : <p style={{ color:'var(--text-muted)', fontSize:14 }}>Loading feedback…</p>}
               </motion.div>
             )}
 

@@ -11,6 +11,9 @@ import {
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import GlassCard from '@/components/ui/GlassCard';
+import api from '@/services/api';
+import { marked } from 'marked';
+import { useToast } from '@/components/ui/Toast';
 
 const noteTypes = [
   { id: 'detailed', label: 'Full Detailed', icon: FileText, color: '#8B5CF6' },
@@ -57,6 +60,8 @@ export default function VideoNotesPage() {
   const [transforming, setTransforming] = useState('');
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
 
   const videoId = useMemo(() => extractVideoId(url), [url]);
   const isValidUrl = !!videoId;
@@ -117,6 +122,22 @@ export default function VideoNotesPage() {
     navigator.clipboard.writeText(generated);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Fix #6: Save as Note actually works now
+  const handleSaveNote = async () => {
+    if (!generated || saving) return;
+    setSaving(true);
+    try {
+      const title = url ? `Video Notes: ${url.slice(0, 60)}` : 'Video Notes';
+      const html = marked.parse(generated, { breaks: true, gfm: true });
+      const noteType = ['detailed','short','bullet','exam','revision'].includes(type) ? type : 'custom';
+      await api.post('/notes', { title, content: html, subject: subject || '', noteType });
+      toast({ message: 'Saved to My Notes!', type: 'success' });
+    } catch (err) {
+      toast({ message: 'Failed to save note', type: 'error' });
+    }
+    setSaving(false);
   };
 
   return (
@@ -428,11 +449,13 @@ export default function VideoNotesPage() {
 
             {generated && (
               <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
-                <button className="btn-primary" style={{
-                  padding: '12px 24px', fontSize: 14,
-                  display: 'flex', alignItems: 'center', gap: 8,
-                }}>
-                  <FileText size={16} /> Save as Note
+                <button
+                  onClick={handleSaveNote}
+                  disabled={saving}
+                  className="btn-primary"
+                  style={{ padding: '12px 24px', fontSize: 14, display: 'flex', alignItems: 'center', gap: 8, opacity: saving ? 0.7 : 1 }}>
+                  {saving ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <FileText size={16} />}
+                  {saving ? 'Saving…' : 'Save as Note'}
                 </button>
                 <button
                   onClick={handleCopy}

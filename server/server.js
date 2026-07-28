@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import { validateEnv } from './src/config/env.js';
 import { connectDB } from './src/config/db.js';
 import { errorHandler } from './src/middleware/errorHandler.js';
 import chatRoutes from './src/routes/chatRoutes.js';
@@ -16,6 +17,16 @@ import plannerRoutes from './src/routes/plannerRoutes.js';
 import dashboardRoutes from './src/routes/dashboardRoutes.js';
 import searchRoutes from './src/routes/searchRoutes.js';
 import adminRoutes from './src/routes/adminRoutes.js';
+import revisionRoutes from './src/routes/revisionRoutes.js';
+import pyqRoutes from './src/routes/pyqRoutes.js';
+import feedbackRoutes from './src/routes/feedbackRoutes.js';
+import trashRoutes from './src/routes/trashRoutes.js';
+import pomodoroRoutes from './src/routes/pomodoroRoutes.js';
+import exportRoutes from './src/routes/exportRoutes.js';
+import recommendationsRoutes from './src/routes/recommendationsRoutes.js';
+
+// Validate environment startup config
+validateEnv();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -44,6 +55,13 @@ app.use('/api/planner', plannerRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/revision', revisionRoutes);
+app.use('/api/pyq', pyqRoutes);
+app.use('/api/feedback', feedbackRoutes);
+app.use('/api/trash', trashRoutes);
+app.use('/api/pomodoro', pomodoroRoutes);
+app.use('/api/export', exportRoutes);
+app.use('/api/recommendations', recommendationsRoutes);
 
 // Error handling
 app.use(errorHandler);

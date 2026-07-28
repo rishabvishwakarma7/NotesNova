@@ -11,8 +11,11 @@ const chatSchema = new mongoose.Schema({
   messages: [messageSchema],
   mode: { type: String, enum: ['study', 'coding', 'research', 'exam', 'simple'], default: 'study' },
   isPinned: { type: Boolean, default: false },
+  isDeleted: { type: Boolean, default: false, index: true },
+  deletedAt: { type: Date, default: null },
 }, { timestamps: true });
 
 chatSchema.index({ userId: 1, createdAt: -1 });
+chatSchema.index({ title: 'text' });
 
 export default mongoose.model('Chat', chatSchema);

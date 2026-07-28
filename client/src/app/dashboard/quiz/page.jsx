@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import GlassCard from '@/components/ui/GlassCard';
 import api from '@/services/api';
+import Link from 'next/link';
 
 const difficulties = [
   { id: 'easy', label: 'Easy', color: '#10B981', icon: Zap },
@@ -564,7 +565,7 @@ export default function QuizPage() {
         </div>
 
         {/* Actions */}
-        <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
           <button onClick={handleRetry} className="btn-secondary" style={{
             padding: '12px 24px', fontSize: 14, display: 'flex', alignItems: 'center', gap: 8,
           }}>
@@ -575,6 +576,61 @@ export default function QuizPage() {
           }}>
             <Plus size={16} /> New Quiz
           </button>
+        </div>
+
+        {/* Next step recommendation */}
+        <div style={{ marginTop: 24, padding: '16px 20px', borderRadius: 14,
+          background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+          <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-primary-light)',
+            textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
+            🎯 Recommended Next Step
+          </p>
+          {percentage < 60 ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+              <div>
+                <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>
+                  Add missed topics to Revision Tracker
+                </p>
+                <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                  Spaced repetition will help you remember these topics for the exam.
+                </p>
+              </div>
+              <Link href="/dashboard/revision" className="btn-primary"
+                style={{ fontSize: 12, padding: '8px 16px', textDecoration: 'none', flexShrink: 0 }}>
+                Go to Revision →
+              </Link>
+            </div>
+          ) : percentage < 80 ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+              <div>
+                <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>
+                  Create flashcards for weak answers
+                </p>
+                <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                  Reinforce the questions you got wrong with quick flashcard practice.
+                </p>
+              </div>
+              <Link href="/dashboard/flashcards" className="btn-primary"
+                style={{ fontSize: 12, padding: '8px 16px', textDecoration: 'none', flexShrink: 0 }}>
+                Go to Flashcards →
+              </Link>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+              <div>
+                <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>
+                  Challenge yourself with a harder quiz
+                </p>
+                <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                  Excellent score! Try a harder difficulty or a different topic.
+                </p>
+              </div>
+              <button onClick={handleNewQuiz} className="btn-primary"
+                style={{ fontSize: 12, padding: '8px 16px', flexShrink: 0 }}>
+                Try Harder Quiz →
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
