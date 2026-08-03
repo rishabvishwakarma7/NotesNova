@@ -1,7 +1,6 @@
 import { generateTextWithProvider } from '../config/aiProvider.js';
 import Quiz from '../models/Quiz.js';
 import WeakTopic from '../models/WeakTopic.js';
-import WeakTopic from '../models/WeakTopic.js';
 
 export const generateQuiz = async (req, res) => {
   try {
