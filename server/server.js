@@ -75,6 +75,20 @@ const start = async () => {
   await connectDB();
   app.listen(PORT, () => {
     console.log(`🚀 NoteNova API running on port ${PORT}`);
+
+    // Self-ping every 14 minutes to prevent Railway free-tier sleep (sleeps after 15min idle)
+    if (process.env.NODE_ENV === 'production' && process.env.RAILWAY_PUBLIC_DOMAIN) {
+      const selfUrl = `https://${process.env.RAILWAY_PUBLIC_DOMAIN}/api/health`;
+      setInterval(() => {
+        import('https').then(({ default: https }) => {
+          https.get(selfUrl, (res) => {
+            console.log(`[Keep-alive] Pinged ${selfUrl} → ${res.statusCode}`);
+          }).on('error', (e) => {
+            console.warn('[Keep-alive] Ping failed:', e.message);
+          });
+        }).catch(() => {});
+      }, 14 * 60 * 1000); // every 14 minutes
+    }
   });
 };
 
