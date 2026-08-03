@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import GlassCard from '@/components/ui/GlassCard';
 import api from '@/services/api';
+import { useToast } from '@/components/ui/Toast';
 
 const typeConfig = {
   study: { icon: BookOpen, color: '#8B5CF6', label: 'Study' },
@@ -33,6 +34,7 @@ export default function PlannerPage() {
   const [topics, setTopics] = useState([]);
   const [hoursPerDay, setHoursPerDay] = useState(4);
   const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => { loadPlans(); }, []);
 
@@ -83,7 +85,7 @@ export default function PlannerPage() {
       setView('detail');
       loadPlans();
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to generate plan');
+      toast({ message: err.response?.data?.error || 'Failed to generate plan', type: 'error' });
     }
     setLoading(false);
   };
@@ -96,7 +98,7 @@ export default function PlannerPage() {
       setExpandedDays(new Set([0]));
       setView('detail');
     } catch {
-      alert('Failed to load plan');
+      toast({ message: 'Failed to load plan', type: 'error' });
     }
     setLoading(false);
   };
@@ -405,6 +407,21 @@ export default function PlannerPage() {
             </div>
           </GlassCard>
 
+          {/* Jump to Today */}
+          {plan.plan.some(d => new Date(d.date).toDateString() === new Date().toDateString()) && (
+            <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:12 }}>
+              <button onClick={() => {
+                const idx = plan.plan.findIndex(d => new Date(d.date).toDateString() === new Date().toDateString());
+                if (idx >= 0) {
+                  document.getElementById(`day-${idx}`)?.scrollIntoView({ behavior:'smooth', block:'center' });
+                  setExpandedDays(prev => new Set([...prev, idx]));
+                }
+              }} className="btn-secondary" style={{ fontSize:12, padding:'7px 14px', display:'flex', alignItems:'center', gap:6 }}>
+                📅 Jump to Today
+              </button>
+            </div>
+          )}
+
           {/* Timeline */}
           <div style={{ position: 'relative' }}>
             {/* Vertical line */}
@@ -427,6 +444,7 @@ export default function PlannerPage() {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: dayIdx * 0.03 }}
                   style={{ marginBottom: 12, paddingLeft: 48, position: 'relative' }}
+                  id={`day-${dayIdx}`}
                 >
                   {/* Timeline dot */}
                   <div style={{

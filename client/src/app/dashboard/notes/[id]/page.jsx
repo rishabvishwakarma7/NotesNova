@@ -4,13 +4,13 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Save, Check, Download, Loader2, Trash2 } from 'lucide-react';
 import TiptapEditor from '@/components/editor/TiptapEditor';
+import SubjectSelector from '@/components/ui/SubjectSelector';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { exportToPdf } from '@/utils/exportPdf';
 import api from '@/services/api';
 import { marked } from 'marked';
 
-// Convert markdown to HTML for Tiptap, skip if already HTML
 function mdToHtml(text) {
   if (!text) return '';
   const isHtml = /<[a-z][\s\S]*>/i.test(text);
@@ -21,11 +21,12 @@ function mdToHtml(text) {
 export default function NoteEditorPage() {
   const { id }   = useParams();
   const router   = useRouter();
+  const searchParams = useSearchParams();
   const isNew    = id === 'new';
 
   const [title,    setTitle]    = useState('Untitled Note');
   const [content,  setContent]  = useState('');
-  const [subject,  setSubject]  = useState('');
+  const [subject,  setSubject]  = useState(() => isNew ? (searchParams?.get('subject') || '') : '');
   const [noteType, setNoteType] = useState('custom');
   const [saving,   setSaving]   = useState(false);
   const [saved,    setSaved]    = useState(false);
@@ -139,10 +140,12 @@ export default function NoteEditorPage() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
-          <input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Subject"
-            style={{ padding: '8px 14px', borderRadius: 10, background: 'var(--bg-glass)',
-              border: '1px solid var(--border-color)', color: 'var(--text-primary)',
-              fontSize: 13, outline: 'none', width: 130, fontFamily: 'inherit' }} />
+          <SubjectSelector
+            value={subject}
+            onChange={setSubject}
+            placeholder="Subject"
+            style={{ width: 200, flexShrink: 0 }}
+          />
 
           <button onClick={handleExportPdf} disabled={exporting} className="btn-secondary"
             style={{ padding: '8px 14px', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, opacity: exporting ? 0.6 : 1 }}>

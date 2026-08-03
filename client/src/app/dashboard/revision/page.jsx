@@ -8,6 +8,7 @@ import {
   AlertCircle, Star, TrendingUp, Calendar,
 } from 'lucide-react';
 import GlassCard from '@/components/ui/GlassCard';
+import SubjectSelector from '@/components/ui/SubjectSelector';
 import api from '@/services/api';
 
 const CONFIDENCE_LABELS = ['', 'Very Weak', 'Weak', 'Average', 'Good', 'Mastered'];
@@ -214,11 +215,11 @@ export default function RevisionPage() {
                 </div>
                 <div>
                   <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6, display: 'block' }}>Subject</label>
-                  <input value={newTopic.subject} onChange={e => setNewTopic(p => ({ ...p, subject: e.target.value }))}
-                    placeholder="e.g. Biology, CS, Physics"
-                    style={{ width: '100%', padding: '12px 14px', borderRadius: 12, fontSize: 14,
-                      background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)',
-                      color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' }} />
+                  <SubjectSelector
+                    value={newTopic.subject}
+                    onChange={v => setNewTopic(p => ({ ...p, subject: v }))}
+                    placeholder="Select or type a subject…"
+                  />
                 </div>
                 <div>
                   <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, display: 'block' }}>
@@ -374,6 +375,25 @@ export default function RevisionPage() {
                           style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', fontSize: 13 }}>
                           <Check size={14} /> Mark as Revised
                         </button>
+                        <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Quick rate:</span>
+                          {[
+                            { q:0, emoji:'😵', color:'#F43F5E', title:'Blackout' },
+                            { q:2, emoji:'😟', color:'#F59E0B', title:'Struggled' },
+                            { q:3, emoji:'😐', color:'#06B6D4', title:'With effort' },
+                            { q:4, emoji:'😊', color:'#8B5CF6', title:'With hint' },
+                            { q:5, emoji:'🎯', color:'#10B981', title:'Perfect' },
+                          ].map(opt => (
+                            <button key={opt.q} onClick={() => handleRevise(topic, opt.q)} title={opt.title}
+                              style={{ width:34, height:34, borderRadius:9, border:`1px solid ${opt.color}30`,
+                                background:`${opt.color}10`, cursor:'pointer', fontSize:16,
+                                display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.15s' }}
+                              onMouseEnter={e => e.currentTarget.style.borderColor = opt.color}
+                              onMouseLeave={e => e.currentTarget.style.borderColor = `${opt.color}30`}>
+                              {opt.emoji}
+                            </button>
+                          ))}
+                        </div>
                         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                           <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Confidence:</span>
                           {[1,2,3,4,5].map(v => (

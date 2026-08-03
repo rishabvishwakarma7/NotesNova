@@ -8,8 +8,10 @@ import {
   ChevronRight, Trash2,
 } from 'lucide-react';
 import GlassCard from '@/components/ui/GlassCard';
+import SubjectSelector from '@/components/ui/SubjectSelector';
 import api from '@/services/api';
 import Link from 'next/link';
+import { useToast } from '@/components/ui/Toast';
 
 const difficulties = [
   { id: 'easy', label: 'Easy', color: '#10B981', icon: Zap },
@@ -32,6 +34,7 @@ export default function QuizPage() {
   const [results, setResults] = useState(null);
   const [history, setHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     loadHistory();
@@ -58,7 +61,7 @@ export default function QuizPage() {
       setShowAnswer(false);
       setView('quiz');
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to generate quiz');
+      toast({ message: err.response?.data?.error || 'Failed to generate quiz', type: 'error' });
     }
     setLoading(false);
   };
@@ -138,7 +141,7 @@ export default function QuizPage() {
       setShowAnswer(false);
       setView('quiz');
     } catch {
-      alert('Failed to load quiz');
+      toast({ message: 'Failed to load quiz', type: 'error' });
     }
     setLoading(false);
   };
@@ -182,15 +185,10 @@ export default function QuizPage() {
 
                 <div>
                   <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6, display: 'block' }}>Subject (optional)</label>
-                  <input
+                  <SubjectSelector
                     value={subject}
-                    onChange={e => setSubject(e.target.value)}
-                    placeholder="e.g., Biology, Computer Science..."
-                    style={{
-                      width: '100%', padding: '12px 16px', borderRadius: 12,
-                      background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)',
-                      color: 'var(--text-primary)', fontSize: 14, outline: 'none', fontFamily: 'inherit',
-                    }}
+                    onChange={setSubject}
+                    placeholder="Select or type a subject…"
                   />
                 </div>
 

@@ -30,12 +30,9 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={{ toast, dismiss }}>
       {children}
-      {/* Toast container */}
-      {/* Toast container — above mobile nav */}
-      <div style={{ position: 'fixed', bottom: 'calc(60px + 16px)', right: 16, zIndex: 9999,
-        display: 'flex', flexDirection: 'column', gap: 8, pointerEvents: 'none' }}
-        className="toast-wrapper">
-        <style>{`@media(min-width:769px){.toast-wrapper{bottom:16px!important;right:20px!important;}}`}</style>
+      {/* Toast container — above mobile nav on mobile, bottom-right on desktop */}
+      <div style={{ position: 'fixed', bottom: 90, right: 16, zIndex: 9999,
+        display: 'flex', flexDirection: 'column', gap: 8, pointerEvents: 'none' }}>
         <AnimatePresence>
           {toasts.map(t => {
             const cfg = ICONS[t.type] || ICONS.info;
@@ -69,6 +66,7 @@ export function ToastProvider({ children }) {
 
 export const useToast = () => {
   const ctx = useContext(ToastContext);
-  if (!ctx) throw new Error('useToast must be used within ToastProvider');
+  // Return a no-op toast if context not available (e.g. during SSR)
+  if (!ctx) return { toast: () => {}, dismiss: () => {} };
   return ctx;
 };

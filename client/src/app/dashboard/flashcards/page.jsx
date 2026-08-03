@@ -88,8 +88,17 @@ export default function FlashcardsPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    api.get('/notes').then(r => {
-      const all = r.data || [];
+    if (mode !== 'study') return;
+    const h = (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'k') handleKnow();
+      if (e.key === 'ArrowLeft'  || e.key === 'j') handleDontKnow();
+    };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [mode, cardIndex, activeDeck, known, unknown]);
+
+  useEffect(() => {
+    api.get('/notes').then(r => {      const all = r.data || [];
       const fcNotes = all.filter(n => n.noteType === 'flashcards' || n.content?.includes('**Q:**'));
       setNotes(all);
       const parsed = fcNotes.map(n => ({
@@ -139,7 +148,6 @@ export default function FlashcardsPage() {
     setKnown([]);
     setUnknown([]);
     setMode('study');
-    // Fix #9: Save session start
     sessionStorage.setItem('flashcard_session', JSON.stringify({ noteId: deck.noteId, cardIndex: 0, known: [], unknown: [] }));
   };
 
@@ -207,6 +215,9 @@ export default function FlashcardsPage() {
         </div>
         <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-muted)', marginTop: 12 }}>
           ✅ {known.length} known · ❌ {unknown.length} unknown
+        </p>
+        <p style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-muted)', marginTop: 4, opacity: 0.7 }}>
+          ← J · Don't Know &nbsp;·&nbsp; Know It · K →
         </p>
       </div>
     );

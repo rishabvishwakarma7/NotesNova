@@ -19,7 +19,6 @@ export default function Navbar() {
   const links = [
     { label: 'Features', href: '#features' },
     { label: 'AI Tools', href: '#showcase' },
-    { label: 'Pricing', href: '#pricing' },
     { label: 'FAQ', href: '#faq' },
   ];
 

@@ -11,6 +11,7 @@ import {
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import GlassCard from '@/components/ui/GlassCard';
+import SubjectSelector from '@/components/ui/SubjectSelector';
 import api from '@/services/api';
 import { marked } from 'marked';
 import { useToast } from '@/components/ui/Toast';
@@ -73,24 +74,11 @@ export default function VideoNotesPage() {
     setError('');
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-      const token = await window.Clerk?.session?.getToken();
-      const res = await fetch(`${apiUrl}/youtube/notes`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ url, type, subject }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || 'Failed to generate notes');
-      } else {
-        setGenerated(data.content || '');
-      }
+      const res = await api.post('/youtube/notes', { url, type, subject });
+      setGenerated(res.data.content || '');
     } catch (err) {
-      setError('Failed to connect to the server. Please make sure the backend is running.');
+      const msg = err.response?.data?.error || err.message || 'Failed to generate notes';
+      setError(msg);
     }
     setLoading(false);
   };
@@ -98,20 +86,9 @@ export default function VideoNotesPage() {
   const handleTransform = async (action) => {
     if (!generated) return;
     setTransforming(action);
-
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-      const token = await window.Clerk?.session?.getToken();
-      const res = await fetch(`${apiUrl}/notes/transform`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ content: generated, action }),
-      });
-      const data = await res.json();
-      setGenerated(data.content || generated);
+      const res = await api.post('/notes/transform', { content: generated, action });
+      setGenerated(res.data.content || generated);
     } catch {
       // Keep existing content on error
     }
@@ -283,17 +260,11 @@ export default function VideoNotesPage() {
             }}>
               Subject (optional)
             </label>
-            <input
-              id="video-notes-subject"
+            <SubjectSelector
               value={subject}
-              onChange={e => setSubject(e.target.value)}
-              placeholder="e.g., Biology, Computer Science, History..."
-              style={{
-                width: '100%', padding: '14px 18px', borderRadius: 12,
-                background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)',
-                color: 'var(--text-primary)', fontSize: 15, outline: 'none',
-                fontFamily: 'inherit',
-              }}
+              onChange={setSubject}
+              placeholder="Select or type a subject…"
+              style={{ width: '100%' }}
             />
           </div>
 

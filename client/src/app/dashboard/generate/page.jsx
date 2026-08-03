@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   Wand2, FileText, List, Target, BookOpen, HelpCircle,
@@ -10,6 +11,7 @@ import {
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import GlassCard from '@/components/ui/GlassCard';
+import SubjectSelector from '@/components/ui/SubjectSelector';
 import { exportToPdf } from '@/utils/exportPdf';
 import api from '@/services/api';
 import { marked } from 'marked';
@@ -37,8 +39,9 @@ const aiActions = [
 ];
 
 export default function GeneratePage() {
+  const searchParams = useSearchParams();
   const [topic, setTopic] = useState('');
-  const [subject, setSubject] = useState('');
+  const [subject, setSubject] = useState(() => searchParams?.get('subject') || '');
   const [type, setType] = useState('detailed');
   const [generated, setGenerated] = useState('');
   const [loading, setLoading] = useState(false);
@@ -131,16 +134,11 @@ export default function GeneratePage() {
           </div>
           <div>
             <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, display: 'block' }}>Subject (optional)</label>
-            <input
+            <SubjectSelector
               value={subject}
-              onChange={e => setSubject(e.target.value)}
-              placeholder="e.g., Biology, Computer Science..."
-              style={{
-                width: '100%', padding: '14px 18px', borderRadius: 12,
-                background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)',
-                color: 'var(--text-primary)', fontSize: 15, outline: 'none',
-                fontFamily: 'inherit',
-              }}
+              onChange={setSubject}
+              placeholder="Select or type a subject…"
+              style={{ width: '100%' }}
             />
           </div>
         </div>

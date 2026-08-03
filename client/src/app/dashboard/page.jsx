@@ -33,6 +33,7 @@ export default function DashboardHome() {
   const [stats,    setStats]    = useState(null);
   const [revStats, setRevStats] = useState(null);
   const [loading,  setLoading]  = useState(true);
+  const [now,      setNow]      = useState(new Date());
 
   useEffect(() => {
     Promise.all([
@@ -44,6 +45,12 @@ export default function DashboardHome() {
     }).finally(() => setLoading(false));
   }, []);
 
+  // Live clock
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(t);
+  }, []);
+
   const firstName  = user?.firstName || user?.fullName?.split(' ')[0] || 'Student';
   const streak     = stats?.streak      ?? 0;
   const avgScore   = stats?.quizAvgScore ?? 0;
@@ -51,6 +58,9 @@ export default function DashboardHome() {
   const dueTopics  = revStats?.due  ?? 0;
   const weakTopics = revStats?.weak ?? 0;
   const mastered   = revStats?.mastered ?? 0;
+
+  const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
   // Derive the single most important next action
   const getNextAction = () => {
@@ -87,18 +97,24 @@ export default function DashboardHome() {
   ];
 
   return (
-    <div style={{ padding: '24px', maxWidth: 1100, margin: '0 auto' }}>
+    <div style={{ padding:'20px 16px', maxWidth:1100, margin:'0 auto', overflowX:'hidden' }}>
 
       {/* ── GREETING ── */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-        style={{ marginBottom: 24 }}>
-        <p style={{ fontSize: 13, color: 'var(--color-primary-light)', fontWeight: 600,
-          textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>
-          {getGreeting()}, {firstName}
-        </p>
-        <p style={{ fontSize: 15, color: 'var(--text-secondary)' }}>
-          {getMotivation(streak)}
-        </p>
+        style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
+        <div>
+          <p style={{ fontSize: 13, color: 'var(--color-primary-light)', fontWeight: 600,
+            textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>
+            {getGreeting()}, {firstName} 👋
+          </p>
+          <p style={{ fontSize: 15, color: 'var(--text-secondary)' }}>
+            {getMotivation(streak)}
+          </p>
+        </div>
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          <p style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1 }}>{timeStr}</p>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{dateStr}</p>
+        </div>
       </motion.div>
 
       {/* ── NEXT BEST ACTION (hero card) ── */}
@@ -144,8 +160,22 @@ export default function DashboardHome() {
       </motion.div>
 
       {/* ── STATS ROW ── */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-        style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+        <style>{`
+          .stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px; }
+          .main-grid { display:grid; grid-template-columns:1fr 300px; gap:14px; margin-bottom:16px; }
+          .tools-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+          .secondary-tools { display:flex; gap:8px; flex-wrap:wrap; }
+          @media(max-width:768px){
+            .stats-row { grid-template-columns:repeat(2,1fr); gap:8px; }
+            .main-grid { grid-template-columns:1fr; }
+            .tools-grid { grid-template-columns:1fr 1fr; gap:8px; }
+          }
+          @media(max-width:380px){
+            .tools-grid { grid-template-columns:1fr; }
+          }
+        `}</style>
+        <div className="stats-row">
         {[
           { icon: Flame,        label: 'Study Streak',    value: streak > 0 ? `${streak}d`  : '—',           color: '#F43F5E' },
           { icon: Target,       label: 'Avg Quiz Score',  value: avgScore > 0 ? `${avgScore}%` : '—',        color: '#10B981' },
@@ -165,22 +195,23 @@ export default function DashboardHome() {
             </div>
           </div>
         ))}
+        </div>
       </motion.div>
-
-      {/* ── MAIN CONTENT GRID ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 16, marginBottom: 20 }}>
+      <style>{`.dash-grid{display:grid;grid-template-columns:1fr 320px;gap:16px;margin-bottom:20px}@media(max-width:900px){.dash-grid{grid-template-columns:1fr!important}}`}</style>
+      <div className="dash-grid">
 
         {/* LEFT: Primary Tools */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
           <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase',
             letterSpacing: '0.07em', marginBottom: 10 }}>Quick Study</p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
             {primaryTools.map((tool, i) => (
               <Link key={i} href={tool.href} style={{ textDecoration: 'none' }}>
                 <motion.div whileHover={{ y: -2 }} transition={{ duration: 0.12 }}
                   style={{ padding: '16px', borderRadius: 14, background: 'var(--bg-card)',
                     border: '1px solid var(--border-color)', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', gap: 12, transition: 'border-color 0.2s' }}
+                    display: 'flex', alignItems: 'center', gap: 12, transition: 'border-color 0.2s',
+                    height: '100%' }}
                   onMouseEnter={e => e.currentTarget.style.borderColor = `${tool.color}50`}
                   onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-color)'}>
                   <div style={{ width: 40, height: 40, borderRadius: 11, background: `${tool.color}15`,

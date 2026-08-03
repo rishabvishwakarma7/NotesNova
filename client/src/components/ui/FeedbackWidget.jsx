@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, Send, Star, Check, Loader2 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
@@ -24,10 +24,12 @@ export default function FeedbackWidget() {
   const [isMobile, setIsMobile] = useState(false);
   const pathname = usePathname();
 
-  useState(() => {
+  useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 768);
-    if (typeof window !== 'undefined') { check(); window.addEventListener('resize', check); }
-  });
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   // On mobile with bottom nav, push up by nav height (60px) + margin (8px)
   // On chat page, no bottom nav so use normal position

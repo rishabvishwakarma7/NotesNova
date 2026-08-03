@@ -59,36 +59,24 @@ export const aiTransform = async (req, res) => {
 
 export const getNotes = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
     const subject = req.query.subject || '';
-    const search = req.query.search || '';
+    const search  = req.query.search  || '';
 
     const query = { userId: req.userId, isDeleted: { $ne: true } };
     if (subject) query.subject = subject;
     if (search) {
       query.$or = [
-        { title: { $regex: search, $options: 'i' } },
+        { title:   { $regex: search, $options: 'i' } },
         { subject: { $regex: search, $options: 'i' } },
-        { tags: { $regex: search, $options: 'i' } },
+        { tags:    { $regex: search, $options: 'i' } },
       ];
     }
 
-    const [notes, total] = await Promise.all([
-      Note.find(query)
-        .select('title subject tags isPinned noteType createdAt updatedAt')
-        .sort({ isPinned: -1, updatedAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit),
-      Note.countDocuments(query),
-    ]);
+    const notes = await Note.find(query)
+      .select('title subject tags isPinned noteType createdAt updatedAt')
+      .sort({ isPinned: -1, updatedAt: -1 });
 
-    res.json({
-      notes,
-      total,
-      page,
-      pages: Math.ceil(total / limit),
-    });
+    res.json(notes);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

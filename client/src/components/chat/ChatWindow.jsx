@@ -295,52 +295,60 @@ export default function ChatWindow() {
 
           {/* Empty state */}
           {messages.length === 0 && (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column',
-              alignItems: 'center', justifyContent: 'center', padding: '20px 12px', textAlign: 'center' }}>
-              <div style={{ width: 64, height: 64, borderRadius: 18, marginBottom: 16,
-                background: 'var(--gradient-ai)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 8px 24px rgba(139,92,246,0.25)' }}>
-                <Sparkles size={28} color="white" />
-              </div>
-              <h3 style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 6 }}>
+            <div style={{ flex:1, display:'flex', flexDirection:'column',
+              alignItems:'center', justifyContent:'center', padding:'16px 20px', textAlign:'center' }}>
+              {/* AI Avatar */}
+              <motion.div initial={{ scale:0.8, opacity:0 }} animate={{ scale:1, opacity:1 }} transition={{ type:'spring', damping:15 }}
+                style={{ width:72, height:72, borderRadius:22, marginBottom:20,
+                  background:'var(--gradient-ai)',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  boxShadow:'0 8px 32px rgba(139,92,246,0.35), 0 0 0 1px rgba(139,92,246,0.2)' }}>
+                <Sparkles size={32} color="white" />
+              </motion.div>
+
+              <h2 style={{ fontSize:26, fontWeight:800, color:'var(--text-primary)', marginBottom:8, lineHeight:1.2 }}>
                 What do you want to learn today?
-              </h3>
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)', maxWidth: 380, lineHeight: 1.6, marginBottom: 24 }}>
+              </h2>
+              <p style={{ fontSize:15, color:'var(--text-secondary)', maxWidth:420, lineHeight:1.6, marginBottom:20 }}>
                 Ask me to explain concepts, create study notes, quiz you, or help with exam prep.
               </p>
 
               {/* Capability chips */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginBottom: 24 }}>
+              <div style={{ display:'flex', flexWrap:'wrap', gap:8, justifyContent:'center', marginBottom:20 }}>
                 {[
-                  { icon: BookOpen,  text: 'Explain concepts' },
-                  { icon: FileText,  text: 'Create study notes' },
-                  { icon: Target,    text: 'Exam preparation' },
-                  { icon: Brain,     text: 'Quiz me' },
-                  { icon: RefreshCw, text: 'Revise topics' },
+                  { icon:BookOpen,  text:'Explain concepts' },
+                  { icon:FileText,  text:'Create study notes' },
+                  { icon:Target,    text:'Exam preparation' },
+                  { icon:Brain,     text:'Quiz me' },
+                  { icon:RefreshCw, text:'Revise topics' },
                 ].map((c, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6,
-                    padding: '6px 12px', borderRadius: 20,
-                    background: 'var(--bg-card)', border: '1px solid var(--border-color)',
-                    fontSize: 12, color: 'var(--text-secondary)' }}>
-                    <c.icon size={12} color="var(--color-primary)" />
-                    {c.text}
-                  </div>
+                  <motion.button key={i} whileHover={{ scale:1.03 }} whileTap={{ scale:0.97 }}
+                    onClick={() => { setInput(c.text); inputRef.current?.focus(); }}
+                    style={{ display:'flex', alignItems:'center', gap:7, padding:'9px 16px',
+                      borderRadius:24, background:'rgba(99,102,241,0.08)',
+                      border:'1px solid rgba(99,102,241,0.2)', cursor:'pointer',
+                      fontSize:14, fontWeight:600, color:'#C4CAD9', transition:'all 0.15s' }}
+                    onMouseEnter={e => { e.currentTarget.style.background='rgba(99,102,241,0.15)'; e.currentTarget.style.color='#A5B4FC'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background='rgba(99,102,241,0.08)'; e.currentTarget.style.color='#C4CAD9'; }}>
+                    <c.icon size={14} color="#818CF8" /> {c.text}
+                  </motion.button>
                 ))}
               </div>
 
-              {/* Prompt suggestions */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, maxWidth: 500, width: '100%' }}>
+              {/* Prompt suggestion cards */}
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:10, maxWidth:560, width:'100%' }}>
                 {SUGGESTIONS.map((s, i) => (
-                  <button key={i} onClick={() => handleSuggestion(s.text)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 13px',
-                      borderRadius: 12, background: 'var(--bg-card)', border: '1px solid var(--border-color)',
-                      cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s' }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-hover)'; e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.background = 'var(--bg-card)'; }}>
-                    <span style={{ fontSize: 15 }}>{s.emoji}</span>
-                    <span style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.4 }}>{s.text}</span>
-                  </button>
+                  <motion.button key={i} whileHover={{ y:-2, scale:1.01 }} whileTap={{ scale:0.98 }}
+                    onClick={() => handleSuggestion(s.text)}
+                    style={{ display:'flex', alignItems:'center', gap:10, padding:'13px 16px',
+                      borderRadius:14, background:'var(--bg-card)',
+                      border:'1px solid var(--border-color)',
+                      cursor:'pointer', textAlign:'left', transition:'all 0.15s' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor='rgba(99,102,241,0.4)'; e.currentTarget.style.background='var(--bg-tertiary)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor='var(--border-color)'; e.currentTarget.style.background='var(--bg-card)'; }}>
+                    <span style={{ fontSize:20, flexShrink:0 }}>{s.emoji}</span>
+                    <span style={{ fontSize:13.5, color:'#C4CAD9', fontWeight:500, lineHeight:1.4 }}>{s.text}</span>
+                  </motion.button>
                 ))}
               </div>
             </div>
