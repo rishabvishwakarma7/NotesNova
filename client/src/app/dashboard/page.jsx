@@ -6,7 +6,7 @@ import {
   MessageSquare, FileText, Wand2, Layers, Brain, CalendarDays,
   Youtube, Flame, Target, BookOpen, RefreshCw, FileQuestion,
   BarChart3, AlertCircle, Sparkles, ChevronRight, Clock,
-  ArrowRight, TrendingUp, CheckCircle2, Play,
+  ArrowRight, TrendingUp, CheckCircle2, Play, Map,
 } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/services/api';
@@ -32,6 +32,7 @@ export default function DashboardHome() {
   const { user } = useUser();
   const [stats,    setStats]    = useState(null);
   const [revStats, setRevStats] = useState(null);
+  const [journey,  setJourney]  = useState(null);
   const [loading,  setLoading]  = useState(true);
   const [now,      setNow]      = useState(new Date());
 
@@ -39,9 +40,11 @@ export default function DashboardHome() {
     Promise.all([
       api.get('/dashboard/stats').catch(() => ({ data: null })),
       api.get('/revision/stats').catch(() => ({ data: null })),
-    ]).then(([s, r]) => {
+      api.get('/journey/summary').catch(() => ({ data: null })),
+    ]).then(([s, r, j]) => {
       setStats(s.data);
       setRevStats(r.data);
+      setJourney(j.data);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -116,6 +119,77 @@ export default function DashboardHome() {
           <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{dateStr}</p>
         </div>
       </motion.div>
+
+      {/* ── JOURNEY CTA (if profile set up) ── */}
+      {journey?.hasProfile && (
+        <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.04 }}
+          style={{ marginBottom:20 }}>
+          <div style={{ padding:'20px 24px', borderRadius:18,
+            background:'linear-gradient(135deg, rgba(16,185,129,0.12), rgba(99,102,241,0.08))',
+            border:'1px solid rgba(16,185,129,0.25)',
+            display:'flex', alignItems:'center', gap:18, flexWrap:'wrap' }}>
+            <div style={{ width:52, height:52, borderRadius:14, background:'rgba(16,185,129,0.15)',
+              display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+              <Map size={24} color="#10B981" />
+            </div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:3, flexWrap:'wrap' }}>
+                <span style={{ fontSize:10, fontWeight:800, color:'#10B981',
+                  textTransform:'uppercase', letterSpacing:'0.08em' }}>📅 Today's Study Journey</span>
+                {journey.daysUntilExam != null && (
+                  <span style={{ fontSize:11, color:'var(--text-muted)', fontWeight:600 }}>
+                    {journey.daysUntilExam} days until exam
+                  </span>
+                )}
+              </div>
+              <p style={{ fontSize:16, fontWeight:700, color:'var(--text-primary)', marginBottom:2 }}>
+                {journey.today?.completedTasks > 0
+                  ? `${journey.today.completedTasks} of ${journey.today.totalTasks} tasks done today`
+                  : journey.today?.totalTasks > 0
+                    ? `${journey.today.totalTasks} tasks ready — let's begin!`
+                    : 'Your personalised study plan awaits'}
+              </p>
+              <p style={{ fontSize:13, color:'var(--text-secondary)' }}>
+                {journey.today?.minutesTotal > 0
+                  ? `${journey.today.minutesCompleted}/${journey.today.minutesTotal} min · ${journey.today.progressPct}% done`
+                  : 'AI-generated daily tasks based on your syllabus'}
+              </p>
+            </div>
+            <Link href="/dashboard/journey" className="btn-primary"
+              style={{ textDecoration:'none', padding:'12px 24px', fontSize:14,
+                background:'linear-gradient(135deg,#10B981,#059669)',
+                display:'flex', alignItems:'center', gap:8, flexShrink:0,
+                boxShadow:'0 4px 14px rgba(16,185,129,0.3)' }}>
+              <Play size={16} /> Start Study Session
+            </Link>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Journey setup prompt (if not done onboarding) */}
+      {journey && !journey.hasProfile && (
+        <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.04 }}
+          style={{ marginBottom:20 }}>
+          <div style={{ padding:'18px 22px', borderRadius:16,
+            background:'rgba(99,102,241,0.06)', border:'1px solid rgba(99,102,241,0.2)',
+            display:'flex', alignItems:'center', gap:16, flexWrap:'wrap' }}>
+            <Sparkles size={22} color="#8B5CF6" />
+            <div style={{ flex:1, minWidth:0 }}>
+              <p style={{ fontSize:14, fontWeight:700, color:'var(--text-primary)', marginBottom:2 }}>
+                Set up your Study Journey
+              </p>
+              <p style={{ fontSize:12, color:'var(--text-secondary)' }}>
+                Add your subjects, exam date, and study goal. Get a personalised daily plan in seconds.
+              </p>
+            </div>
+            <Link href="/dashboard/journey/onboarding" className="btn-primary"
+              style={{ textDecoration:'none', fontSize:13, padding:'9px 18px',
+                display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
+              Get Started <ArrowRight size={13} />
+            </Link>
+          </div>
+        </motion.div>
+      )}
 
       {/* ── NEXT BEST ACTION (hero card) ── */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
