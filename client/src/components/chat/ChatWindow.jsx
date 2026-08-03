@@ -24,7 +24,7 @@ const SUGGESTIONS = [
 ];
 
 /* ── Learning context panel ── */
-function ContextPanel({ messages, mode, onClose }) {
+function ContextPanel({ messages, mode, context, onContextChange, onClose }) {
   const topics = messages
     .filter(m => m.role === 'user')
     .map(m => m.content.slice(0, 50))
@@ -33,7 +33,9 @@ function ContextPanel({ messages, mode, onClose }) {
 
   const modeLabels = {
     study: 'Study Mode', coding: 'Coding Mode',
-    research: 'Research Mode', exam: 'Exam Prep', simple: 'Simple Mode',
+    research: 'Research Mode', exam: 'Exam Prep',
+    simple: 'Simple Mode', teach: 'Teach Me Mode',
+    socratic: 'Socratic Mode',
   };
 
   return (
@@ -52,11 +54,26 @@ function ContextPanel({ messages, mode, onClose }) {
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '14px 14px' }}>
+        {/* Context inputs — always shown */}
+        <div style={{ marginBottom: 14 }}>
+          <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)',
+            textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Study Context</p>
+          <input value={context.subject} onChange={e => onContextChange(p => ({ ...p, subject: e.target.value }))}
+            placeholder="Subject (e.g. Networks)"
+            style={{ width: '100%', padding: '7px 9px', borderRadius: 8, fontSize: 12, marginBottom: 6,
+              background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)',
+              color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+          <input value={context.topic} onChange={e => onContextChange(p => ({ ...p, topic: e.target.value }))}
+            placeholder="Topic (e.g. CRC)"
+            style={{ width: '100%', padding: '7px 9px', borderRadius: 8, fontSize: 12,
+              background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)',
+              color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+        </div>
+
         {messages.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '20px 8px' }}>
-            <Sparkles size={24} color="var(--text-muted)" style={{ margin: '0 auto 10px', display: 'block', opacity: 0.4 }} />
+          <div style={{ textAlign: 'center', padding: '8px' }}>
             <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-              Start a study conversation to build your learning context.
+              Start a conversation to build your context.
             </p>
           </div>
         ) : (
@@ -148,6 +165,7 @@ export default function ChatWindow() {
   const [mode,        setMode]        = useState('study');
   const [isListening, setIsListening] = useState(false);
   const [showContext, setShowContext] = useState(false);
+  const [context,     setContext]     = useState({ subject: '', topic: '' });
   const messagesEndRef = useRef(null);
   const inputRef       = useRef(null);
 
@@ -174,7 +192,12 @@ export default function ChatWindow() {
       const response = await fetch(`${apiUrl}/chat/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
-        body: JSON.stringify({ messages: newMessages.map(m => ({ role: m.role, content: m.content })), mode }),
+        body: JSON.stringify({
+          messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+          mode,
+          subject: context.subject || undefined,
+          topic: context.topic || undefined,
+        }),
       });
 
       if (!response.ok) {
@@ -288,6 +311,36 @@ export default function ChatWindow() {
             </button>
           </div>
         </div>
+
+        {/* ── CONTEXT BAR ── */}
+        {(context.subject || context.topic || mode === 'teach' || mode === 'socratic') && (
+          <div style={{ padding:'6px 20px', background:'var(--bg-tertiary)',
+            borderBottom:'1px solid var(--border-color)', display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+            {mode === 'teach' && (
+              <span style={{ fontSize:11, fontWeight:700, color:'#10B981',
+                background:'rgba(16,185,129,0.1)', padding:'2px 8px', borderRadius:6 }}>
+                🎓 Teach Me Mode — AI will explain, then quiz you
+              </span>
+            )}
+            {mode === 'socratic' && (
+              <span style={{ fontSize:11, fontWeight:700, color:'#EC4899',
+                background:'rgba(236,72,153,0.1)', padding:'2px 8px', borderRadius:6 }}>
+                💭 Socratic Mode — AI guides with questions
+              </span>
+            )}
+            {context.subject && (
+              <span style={{ fontSize:11, color:'var(--text-secondary)', display:'flex', alignItems:'center', gap:4 }}>
+                📚 <strong>{context.subject}</strong>
+                {context.topic && <> › {context.topic}</>}
+              </span>
+            )}
+            <button onClick={() => setContext({ subject: '', topic: '' })}
+              style={{ marginLeft:'auto', fontSize:11, color:'var(--text-muted)', background:'none',
+                border:'none', cursor:'pointer' }}>
+              Clear ×
+            </button>
+          </div>
+        )}
 
         {/* ── MESSAGES ── */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px 20px 8px',
@@ -429,7 +482,7 @@ export default function ChatWindow() {
           <motion.div initial={{ width: 0, opacity: 0 }} animate={{ width: 240, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }} transition={{ duration: 0.2 }}
             style={{ overflow: 'hidden', display: 'flex' }}>
-            <ContextPanel messages={messages} mode={mode} onClose={() => setShowContext(false)} />
+            <ContextPanel messages={messages} mode={mode} context={context} onContextChange={setContext} onClose={() => setShowContext(false)} />
           </motion.div>
         )}
       </AnimatePresence>

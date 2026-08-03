@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import ChatWindow from '@/components/chat/ChatWindow';
 
 export default function ChatPage() {

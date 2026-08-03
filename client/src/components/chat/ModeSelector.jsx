@@ -5,11 +5,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, BookOpen, Code, Search, GraduationCap, Lightbulb } from 'lucide-react';
 
 const modes = [
-  { id: 'study',    label: 'Study',    icon: BookOpen,      color: '#6366F1', desc: 'Understand concepts deeply' },
-  { id: 'coding',   label: 'Coding',   icon: Code,          color: '#06B6D4', desc: 'Learn and debug code' },
-  { id: 'research', label: 'Research', icon: Search,        color: '#10B981', desc: 'Explore topics in depth' },
-  { id: 'exam',     label: 'Exam Prep',icon: GraduationCap, color: '#F59E0B', desc: 'Focus on exam-ready answers' },
-  { id: 'simple',   label: 'Simple',   icon: Lightbulb,     color: '#EC4899', desc: 'Beginner-friendly language' },
+  { id: 'study',    label: 'Study',      icon: BookOpen,      color: '#6366F1', desc: 'Understand concepts deeply' },
+  { id: 'exam',     label: 'Exam Prep',  icon: GraduationCap, color: '#F59E0B', desc: 'Focus on exam-ready answers' },
+  { id: 'teach',    label: 'Teach Me',   icon: Lightbulb,     color: '#10B981', desc: 'AI explains step-by-step & checks you' },
+  { id: 'socratic', label: 'Socratic',   icon: Search,        color: '#EC4899', desc: 'Learn through guided questions' },
+  { id: 'coding',   label: 'Coding',     icon: Code,          color: '#06B6D4', desc: 'Learn and debug code' },
+  { id: 'simple',   label: 'Simple',     icon: Lightbulb,     color: '#A78BFA', desc: 'Beginner-friendly language' },
 ];
 
 export default function ModeSelector({ mode, onSelect }) {

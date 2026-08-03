@@ -1,11 +1,14 @@
 'use client';
 
+
+export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import { useUser, useAuth } from '@clerk/nextjs';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FolderOpen, Plus, X, FileText, Trash2, Search,
   BookOpen, ChevronRight, ArrowLeft, Loader2, Edit2, Check,
+  Brain, RefreshCw, Wand2, Target, Youtube,
 } from 'lucide-react';
 import GlassCard from '@/components/ui/GlassCard';
 import api from '@/services/api';
@@ -142,74 +145,193 @@ export default function SubjectsPage() {
 
   const filtered = subjects.filter(s => s.name.toLowerCase().includes(search.toLowerCase()));
 
+  const [subjectTab, setSubjectTab] = useState('notes');
+
   // ── Subject detail view ──
   if (selected) {
     const subj = subjects.find(s => s.name === selected);
+    const color = subj?.color || '#8B5CF6';
+    const tabs = [
+      { id: 'notes',    label: 'Notes',      icon: FileText },
+      { id: 'quiz',     label: 'Quiz',       icon: Brain },
+      { id: 'revision', label: 'Revision',   icon: RefreshCw },
+      { id: 'generate', label: 'Generate',   icon: Wand2 },
+    ];
     return (
-      <div style={{ padding:'28px 20px', maxWidth:1100, margin:'0 auto' }}>
+      <div style={{ padding:'24px 20px', maxWidth:1100, margin:'0 auto' }}>
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-        <button onClick={() => setSelected(null)}
+        <button onClick={() => { setSelected(null); setSubjectTab('notes'); }}
           style={{ display:'flex', alignItems:'center', gap:8, background:'none', border:'none',
             cursor:'pointer', color:'var(--text-muted)', fontSize:14, marginBottom:20, padding:0 }}>
           <ArrowLeft size={16} /> Back to Subjects
         </button>
-        <div style={{ display:'flex', alignItems:'center', gap:16, marginBottom:24 }}>
-          <div style={{ width:52, height:52, borderRadius:14, background:`${subj?.color||'#8B5CF6'}18`,
-            display:'flex', alignItems:'center', justifyContent:'center' }}>
-            <FolderOpen size={26} color={subj?.color||'#8B5CF6'} />
+
+        {/* Subject header */}
+        <div style={{ display:'flex', alignItems:'center', gap:16, marginBottom:20, flexWrap:'wrap' }}>
+          <div style={{ width:54, height:54, borderRadius:15, background:`${color}18`,
+            display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+            <FolderOpen size={26} color={color} />
           </div>
-          <div>
-            <h1 style={{ fontSize:24, fontWeight:800, color:'var(--text-primary)' }}>{selected}</h1>
-            <p style={{ fontSize:13, color:'var(--text-muted)' }}>{notes.length} note{notes.length!==1?'s':''}</p>
+          <div style={{ flex:1, minWidth:0 }}>
+            <h1 style={{ fontSize:22, fontWeight:800, color:'var(--text-primary)', marginBottom:2 }}>{selected}</h1>
+            <div style={{ display:'flex', gap:12, fontSize:12, color:'var(--text-muted)' }}>
+              <span>{notes.length} note{notes.length!==1?'s':''}</span>
+              <span>·</span>
+              <span style={{ color }}>Active subject</span>
+            </div>
           </div>
-          <Link href={`/dashboard/notes/new?subject=${encodeURIComponent(selected)}`} className="btn-primary"
-            style={{ marginLeft:'auto', textDecoration:'none', fontSize:13, padding:'9px 18px',
-              display:'flex', alignItems:'center', gap:6 }}>
-            <Plus size={14} /> Add Note
-          </Link>
+          <div style={{ display:'flex', gap:8, flexShrink:0 }}>
+            <Link href={`/dashboard/generate?subject=${encodeURIComponent(selected)}`} className="btn-secondary"
+              style={{ textDecoration:'none', fontSize:12, padding:'8px 14px', display:'flex', alignItems:'center', gap:6 }}>
+              <Wand2 size={13} /> Generate Notes
+            </Link>
+            <Link href={`/dashboard/quiz?subject=${encodeURIComponent(selected)}`} className="btn-secondary"
+              style={{ textDecoration:'none', fontSize:12, padding:'8px 14px', display:'flex', alignItems:'center', gap:6 }}>
+              <Brain size={13} /> Create Quiz
+            </Link>
+            <Link href={`/dashboard/notes/new?subject=${encodeURIComponent(selected)}`} className="btn-primary"
+              style={{ textDecoration:'none', fontSize:12, padding:'8px 14px', display:'flex', alignItems:'center', gap:6 }}>
+              <Plus size={13} /> Add Note
+            </Link>
+          </div>
         </div>
 
-        {notesLoading ? (
-          <div style={{ display:'flex', justifyContent:'center', padding:48 }}>
-            <Loader2 size={28} color="#8B5CF6" style={{ animation:'spin 1s linear infinite' }} />
-          </div>
-        ) : notes.length === 0 ? (
-          <GlassCard style={{ padding:48, textAlign:'center' }}>
-            <BookOpen size={36} color="var(--text-muted)" style={{ marginBottom:14, opacity:0.4 }} />
-            <p style={{ fontSize:16, fontWeight:600, color:'var(--text-primary)', marginBottom:8 }}>No notes yet</p>
-            <p style={{ fontSize:13, color:'var(--text-muted)', marginBottom:20 }}>
-              Create a note and assign it to <strong>{selected}</strong>
-            </p>
-            <Link href={`/dashboard/generate?subject=${encodeURIComponent(selected)}`} className="btn-primary"
-              style={{ display:'inline-flex', alignItems:'center', gap:8, textDecoration:'none', padding:'10px 20px' }}>
-              <Plus size={14} /> Generate Notes
+        {/* Quick stats row */}
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10, marginBottom:20 }}
+          className="subject-stats">
+          <style>{`.subject-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}@media(max-width:640px){.subject-stats{grid-template-columns:repeat(2,1fr)}}`}</style>
+          {[
+            { label:'Notes', value:notes.length, icon:FileText, color },
+            { label:'Quizzes', value:'—', icon:Brain, color:'#06B6D4' },
+            { label:'Revisions', value:'—', icon:RefreshCw, color:'#10B981' },
+            { label:'Completion', value:'—', icon:Target, color:'#F59E0B' },
+          ].map((s,i) => (
+            <div key={i} style={{ padding:'12px 14px', borderRadius:12, background:'var(--bg-card)',
+              border:'1px solid var(--border-color)', display:'flex', alignItems:'center', gap:10 }}>
+              <div style={{ width:32, height:32, borderRadius:9, background:`${s.color}15`,
+                display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                <s.icon size={15} color={s.color} />
+              </div>
+              <div>
+                <p style={{ fontSize:18, fontWeight:800, color:'var(--text-primary)', lineHeight:1 }}>{s.value}</p>
+                <p style={{ fontSize:10, color:'var(--text-muted)', marginTop:2 }}>{s.label}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display:'flex', gap:4, borderBottom:'1px solid var(--border-color)', marginBottom:20 }}>
+          {tabs.map(tab => (
+            <button key={tab.id} onClick={() => setSubjectTab(tab.id)}
+              style={{ padding:'9px 16px', border:'none', cursor:'pointer', fontSize:13, fontWeight:600,
+                background:'transparent', display:'flex', alignItems:'center', gap:6,
+                color: subjectTab === tab.id ? color : 'var(--text-muted)',
+                borderBottom: subjectTab === tab.id ? `2px solid ${color}` : '2px solid transparent',
+                marginBottom:'-1px', transition:'color 0.15s' }}>
+              <tab.icon size={13} /> {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab: Notes */}
+        {subjectTab === 'notes' && (
+          notesLoading ? (
+            <div style={{ display:'flex', justifyContent:'center', padding:48 }}>
+              <Loader2 size={28} color={color} style={{ animation:'spin 1s linear infinite' }} />
+            </div>
+          ) : notes.length === 0 ? (
+            <GlassCard style={{ padding:'48px 28px', textAlign:'center', display:'flex', flexDirection:'column', alignItems:'center' }}>
+              <BookOpen size={36} color="var(--text-muted)" style={{ marginBottom:14, opacity:0.3 }} />
+              <p style={{ fontSize:16, fontWeight:700, color:'var(--text-primary)', marginBottom:8 }}>No notes for {selected} yet</p>
+              <p style={{ fontSize:13, color:'var(--text-muted)', marginBottom:20, maxWidth:340, lineHeight:1.6 }}>
+                Generate AI-powered notes or create your own and assign them to this subject.
+              </p>
+              <div style={{ display:'flex', gap:10 }}>
+                <Link href={`/dashboard/generate?subject=${encodeURIComponent(selected)}`} className="btn-primary"
+                  style={{ display:'inline-flex', alignItems:'center', gap:8, textDecoration:'none', padding:'10px 20px', fontSize:13 }}>
+                  <Wand2 size={14} /> Generate with AI
+                </Link>
+                <Link href={`/dashboard/notes/new?subject=${encodeURIComponent(selected)}`} className="btn-secondary"
+                  style={{ display:'inline-flex', alignItems:'center', gap:8, textDecoration:'none', padding:'10px 20px', fontSize:13 }}>
+                  <Plus size={14} /> Write a Note
+                </Link>
+              </div>
+            </GlassCard>
+          ) : (
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(270px,1fr))', gap:14 }}>
+              {notes.map((note, i) => (
+                <motion.div key={note._id} initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*0.04 }}>
+                  <Link href={`/dashboard/notes/${note._id}`} style={{ textDecoration:'none' }}>
+                    <GlassCard style={{ padding:20, cursor:'pointer' }}>
+                      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8 }}>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <p style={{ fontSize:14, fontWeight:700, color:'var(--text-primary)', marginBottom:6,
+                            overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{note.title}</p>
+                          <span style={{ fontSize:10, color, background:`${color}15`, padding:'2px 7px', borderRadius:5, textTransform:'capitalize' }}>
+                            {note.noteType}
+                          </span>
+                        </div>
+                        <FileText size={16} color="var(--text-muted)" style={{ flexShrink:0 }} />
+                      </div>
+                      <p style={{ fontSize:11, color:'var(--text-muted)', marginTop:10 }}>
+                        {new Date(note.updatedAt).toLocaleDateString('en-US',{ month:'short', day:'numeric', year:'numeric' })}
+                      </p>
+                    </GlassCard>
+                  </Link>
+                </motion.div>
+              ))}
+            </div>
+          )
+        )}
+
+        {/* Tab: Quiz */}
+        {subjectTab === 'quiz' && (
+          <GlassCard style={{ padding:'40px 28px', textAlign:'center', display:'flex', flexDirection:'column', alignItems:'center' }}>
+            <Brain size={36} color={color} style={{ marginBottom:14, opacity:0.6 }} />
+            <p style={{ fontSize:16, fontWeight:700, color:'var(--text-primary)', marginBottom:8 }}>Quiz for {selected}</p>
+            <p style={{ fontSize:13, color:'var(--text-muted)', marginBottom:20 }}>Generate an AI quiz for this subject</p>
+            <Link href={`/dashboard/quiz?subject=${encodeURIComponent(selected)}`} className="btn-primary"
+              style={{ textDecoration:'none', display:'inline-flex', alignItems:'center', gap:8, padding:'10px 20px', fontSize:13,
+                background:`linear-gradient(135deg,${color},${color}cc)` }}>
+              <Brain size={14} /> Start Quiz
             </Link>
           </GlassCard>
-        ) : (
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(270px,1fr))', gap:14 }}>
-            {notes.map((note, i) => (
-              <motion.div key={note._id} initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*0.04 }}>
-                <Link href={`/dashboard/notes/${note._id}`} style={{ textDecoration:'none' }}>
-                  <GlassCard style={{ padding:20, cursor:'pointer' }}>
-                    <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8 }}>
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <p style={{ fontSize:14, fontWeight:700, color:'var(--text-primary)', marginBottom:6,
-                          overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{note.title}</p>
-                        <span style={{ fontSize:10, color:subj?.color||'#8B5CF6',
-                          background:`${subj?.color||'#8B5CF6'}15`, padding:'2px 7px', borderRadius:5, textTransform:'capitalize' }}>
-                          {note.noteType}
-                        </span>
-                      </div>
-                      <FileText size={16} color="var(--text-muted)" style={{ flexShrink:0 }} />
-                    </div>
-                    <p style={{ fontSize:11, color:'var(--text-muted)', marginTop:10 }}>
-                      {new Date(note.updatedAt).toLocaleDateString('en-US',{ month:'short', day:'numeric', year:'numeric' })}
-                    </p>
-                  </GlassCard>
-                </Link>
-              </motion.div>
-            ))}
-          </div>
+        )}
+
+        {/* Tab: Revision */}
+        {subjectTab === 'revision' && (
+          <GlassCard style={{ padding:'40px 28px', textAlign:'center', display:'flex', flexDirection:'column', alignItems:'center' }}>
+            <RefreshCw size={36} color="#10B981" style={{ marginBottom:14, opacity:0.6 }} />
+            <p style={{ fontSize:16, fontWeight:700, color:'var(--text-primary)', marginBottom:8 }}>Revision for {selected}</p>
+            <p style={{ fontSize:13, color:'var(--text-muted)', marginBottom:20 }}>Track and schedule revisions for topics in this subject</p>
+            <Link href={`/dashboard/revision`} className="btn-primary"
+              style={{ textDecoration:'none', display:'inline-flex', alignItems:'center', gap:8, padding:'10px 20px', fontSize:13 }}>
+              <RefreshCw size={14} /> Go to Revision Tracker
+            </Link>
+          </GlassCard>
+        )}
+
+        {/* Tab: Generate */}
+        {subjectTab === 'generate' && (
+          <GlassCard style={{ padding:'40px 28px', textAlign:'center', display:'flex', flexDirection:'column', alignItems:'center' }}>
+            <Wand2 size={36} color="#8B5CF6" style={{ marginBottom:14, opacity:0.6 }} />
+            <p style={{ fontSize:16, fontWeight:700, color:'var(--text-primary)', marginBottom:8 }}>Generate content for {selected}</p>
+            <div style={{ display:'flex', gap:10, flexWrap:'wrap', justifyContent:'center' }}>
+              <Link href={`/dashboard/generate?subject=${encodeURIComponent(selected)}`} className="btn-primary"
+                style={{ textDecoration:'none', display:'inline-flex', alignItems:'center', gap:8, padding:'10px 18px', fontSize:13 }}>
+                <FileText size={14} /> Generate Notes
+              </Link>
+              <Link href={`/dashboard/quiz?subject=${encodeURIComponent(selected)}`} className="btn-secondary"
+                style={{ textDecoration:'none', display:'inline-flex', alignItems:'center', gap:8, padding:'10px 18px', fontSize:13 }}>
+                <Brain size={14} /> Generate Quiz
+              </Link>
+              <Link href={`/dashboard/video-notes?subject=${encodeURIComponent(selected)}`} className="btn-secondary"
+                style={{ textDecoration:'none', display:'inline-flex', alignItems:'center', gap:8, padding:'10px 18px', fontSize:13 }}>
+                <Youtube size={14} /> YouTube Notes
+              </Link>
+            </div>
+          </GlassCard>
         )}
       </div>
     );

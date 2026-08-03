@@ -3,6 +3,8 @@ import { ThemeProvider } from '@/context/ThemeContext';
 import { ToastProvider } from '@/components/ui/Toast';
 import './globals.css';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata = {
   title: 'NoteNova AI — Smart Study Platform',
   description: 'AI-powered study platform to learn, practice, and ace your exams.',
