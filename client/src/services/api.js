@@ -3,6 +3,7 @@ import axios from 'axios';
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api',
   withCredentials: false,
+  timeout: 60000, // 60s — allows Railway cold start (~30-45s) to complete
 });
 
 // Token provider — can be set from anywhere in the app (e.g. a React hook)

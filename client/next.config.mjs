@@ -3,11 +3,21 @@ const nextConfig = {
   reactStrictMode: true,
   images: {
     domains: ['img.clerk.com', 'images.unsplash.com'],
+    formats: ['image/avif', 'image/webp'],
   },
-  // Suppress prerender errors caused by Clerk during local builds.
-  // On Vercel, the publishable key is available so this has no effect there.
-  typescript: { ignoreBuildErrors: false },
-  eslint: { ignoreDuringBuilds: false },
+  // Compress responses
+  compress: true,
+  // Aggressive package import optimization — tree-shake large libs
+  experimental: {
+    optimizePackageImports: [
+      'lucide-react',
+      'framer-motion',
+      'react-markdown',
+      'recharts',
+      '@tiptap/react',
+      '@tiptap/starter-kit',
+    ],
+  },
 };
 
 export default nextConfig;

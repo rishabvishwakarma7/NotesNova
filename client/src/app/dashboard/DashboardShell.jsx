@@ -144,6 +144,13 @@ export default function DashboardShell({ children }) {
   useUserSync();
   useAuthApi();
 
+  // Silently ping the backend on first load so Railway wakes up from cold start
+  // before the user tries to generate notes or use AI features
+  useEffect(() => {
+    const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+    fetch(`${base.replace('/api', '')}/api/health`, { method: 'GET' }).catch(() => {});
+  }, []);
+
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 768);
     check();

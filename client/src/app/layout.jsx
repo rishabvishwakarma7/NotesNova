@@ -1,9 +1,19 @@
 import { ClerkProvider } from '@clerk/nextjs';
+import { Inter } from 'next/font/google';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { ToastProvider } from '@/components/ui/Toast';
 import './globals.css';
 
+// Root layout is dynamic because ClerkProvider needs auth context
 export const dynamic = 'force-dynamic';
+
+// Load Inter via next/font for automatic optimization (no render-blocking @import)
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+  preload: true,
+});
 
 export const metadata = {
   title: 'NoteNova AI — Smart Study Platform',
@@ -32,7 +42,7 @@ const themeScript = `
 export default function RootLayout({ children }) {
   return (
     <ClerkProvider>
-      <html lang="en" suppressHydrationWarning>
+      <html lang="en" suppressHydrationWarning className={inter.variable}>
         <head>
           {/* eslint-disable-next-line @next/next/no-sync-scripts */}
           <script dangerouslySetInnerHTML={{ __html: themeScript }} />

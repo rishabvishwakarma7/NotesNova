@@ -5,9 +5,18 @@ export const dynamic = 'force-dynamic';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Save, Check, Download, Loader2, Trash2 } from 'lucide-react';
-import TiptapEditor from '@/components/editor/TiptapEditor';
+import dynamic_import from 'next/dynamic';
 import SubjectSelector from '@/components/ui/SubjectSelector';
 import Link from 'next/link';
+
+const TiptapEditor = dynamic_import(() => import('@/components/editor/TiptapEditor'), {
+  ssr: false,
+  loading: () => (
+    <div style={{ padding: '28px 32px', minHeight: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Loader2 size={24} color="#8B5CF6" style={{ animation: 'spin 1s linear infinite' }} />
+    </div>
+  ),
+});
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { exportToPdf } from '@/utils/exportPdf';
 import api from '@/services/api';

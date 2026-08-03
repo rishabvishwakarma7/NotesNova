@@ -61,7 +61,23 @@ export default function GeneratePage() {
     try {
       const res = await api.post('/notes/generate', { topic, type, subject });
       setGenerated(res.data.content || '');
-    } catch {
+    } catch (err) {
+      // If it's a network/timeout error, try once more after a brief wait
+      // (Railway cold start can take ~15s on free tier)
+      const isNetworkErr = !err.response || err.code === 'ECONNABORTED' || err.code === 'ERR_NETWORK';
+      if (isNetworkErr) {
+        toast({ message: '⏳ Backend waking up, retrying…', type: 'info' });
+        try {
+          await new Promise(r => setTimeout(r, 8000)); // wait 8s for cold start
+          const retry = await api.post('/notes/generate', { topic, type, subject });
+          setGenerated(retry.data.content || '');
+          setLoading(false);
+          return;
+        } catch {}
+      }
+      // Show clear error — don't silently fall back to demo
+      const msg = err.response?.data?.error || err.message || 'Unknown error';
+      toast({ message: `AI failed: ${msg}`, type: 'error' });
       setGenerated(getDemoNotes(topic, type));
     }
     setLoading(false);
