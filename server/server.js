@@ -25,6 +25,7 @@ import pomodoroRoutes from './src/routes/pomodoroRoutes.js';
 import exportRoutes from './src/routes/exportRoutes.js';
 import recommendationsRoutes from './src/routes/recommendationsRoutes.js';
 import journeyRoutes from './src/routes/journeyRoutes.js';
+import weeklyReportRoutes from './src/routes/weeklyReportRoutes.js';
 
 // Validate environment startup config
 validateEnv();
@@ -64,6 +65,7 @@ app.use('/api/pomodoro', pomodoroRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/recommendations', recommendationsRoutes);
 app.use('/api/journey', journeyRoutes);
+app.use('/api/weekly-report', weeklyReportRoutes);
 
 // Error handling
 app.use(errorHandler);

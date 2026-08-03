@@ -1,5 +1,7 @@
 import { generateTextWithProvider } from '../config/aiProvider.js';
 import Quiz from '../models/Quiz.js';
+import WeakTopic from '../models/WeakTopic.js';
+import WeakTopic from '../models/WeakTopic.js';
 
 export const generateQuiz = async (req, res) => {
   try {
@@ -69,8 +71,22 @@ export const submitQuiz = async (req, res) => {
     if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
 
     let score = 0;
+    const wrongQuestions = [];
+
     quiz.questions.forEach((q, i) => {
-      if (answers[i] === q.correctAnswer) score++;
+      if (answers[i] === q.correctAnswer) {
+        score++;
+      } else {
+        wrongQuestions.push({
+          topic: quiz.title.replace(/^Quiz:\s*/i, ''),
+          question: q.question,
+          userAnswer: q.options[answers[i]] ?? 'No answer',
+          correctAnswer: q.options[q.correctAnswer],
+          explanation: q.explanation || '',
+          quizId: quiz._id,
+          accuracy: 0,
+        });
+      }
     });
 
     quiz.attempts.push({
@@ -79,9 +95,48 @@ export const submitQuiz = async (req, res) => {
       answers,
       completedAt: new Date(),
     });
-
     await quiz.save();
-    res.json({ score, total: quiz.questions.length, attempt: quiz.attempts[quiz.attempts.length - 1] });
+
+    // Auto-record weak topics when accuracy < 70%
+    const accuracy = Math.round((score / quiz.questions.length) * 100);
+    if (wrongQuestions.length > 0 && accuracy < 70 && quiz.subject) {
+      try {
+        // Group mistakes by topic (use quiz title as topic)
+        const topic = quiz.title.replace(/^Quiz:\s*/i, '');
+        const existing = await WeakTopic.findOne({
+          userId: req.userId,
+          subject: quiz.subject,
+          topic,
+        });
+        if (existing) {
+          existing.missCount += wrongQuestions.length;
+          existing.quizAccuracy = Math.round((existing.quizAccuracy + accuracy) / 2);
+          existing.lastDetected = new Date();
+          existing.isResolved = false;
+          wrongQuestions.forEach(m => existing.mistakes.push({ ...m, date: new Date() }));
+          await existing.save();
+        } else {
+          await WeakTopic.create({
+            userId: req.userId,
+            subject: quiz.subject,
+            topic,
+            quizAccuracy: accuracy,
+            missCount: wrongQuestions.length,
+            mistakes: wrongQuestions.map(m => ({ ...m, date: new Date() })),
+          });
+        }
+      } catch (err) {
+        console.error('WeakTopic recording error:', err);
+      }
+    }
+
+    res.json({
+      score,
+      total: quiz.questions.length,
+      accuracy,
+      weakTopicRecorded: wrongQuestions.length > 0 && accuracy < 70,
+      attempt: quiz.attempts[quiz.attempts.length - 1],
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

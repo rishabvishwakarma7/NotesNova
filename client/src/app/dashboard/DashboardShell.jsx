@@ -10,7 +10,7 @@ import {
   Sparkles, ChevronLeft, ChevronRight, Menu, Wand2, Youtube,
   Brain, CalendarDays, Search, RefreshCw, FileQuestion, BarChart3,
   X, Timer, Trash2, Plus, BookOpen, Bell, Palette, User,
-  ChevronDown, Map,
+  ChevronDown, Map, BookMarked, TrendingUp,
 } from 'lucide-react';
 import ThemeToggle from '@/components/ui/ThemeToggle';
 import SearchModal from '@/components/ui/SearchModal';
@@ -50,6 +50,7 @@ const navGroups = [
       { icon: Brain,      label: 'AI Quiz',          href: '/dashboard/quiz' },
       { icon: Layers,     label: 'Flashcards',       href: '/dashboard/flashcards' },
       { icon: RefreshCw,  label: 'Revision',         href: '/dashboard/revision' },
+      { icon: BookMarked, label: 'Mistake Notebook', href: '/dashboard/mistakes' },
     ],
   },
   {
@@ -57,6 +58,7 @@ const navGroups = [
     items: [
       { icon: FileText,   label: 'My Notes',         href: '/dashboard/notes' },
       { icon: BarChart3,  label: 'Analytics',        href: '/dashboard/analytics' },
+      { icon: TrendingUp, label: 'Weekly Report',    href: '/dashboard/weekly-report' },
       { icon: Trash2,     label: 'Trash',            href: '/dashboard/trash' },
       { icon: Settings,   label: 'Settings',         href: '/dashboard/settings' },
     ],
@@ -64,12 +66,12 @@ const navGroups = [
 ];
 
 const CREATE_OPTIONS = [
-  { icon: Map,      label: 'Study Journey',    href: '/dashboard/journey',    color: '#10B981' },
-  { icon: Wand2,    label: 'Generate Notes',   href: '/dashboard/generate',   color: '#8B5CF6' },
-  { icon: Brain,    label: 'Create Quiz',      href: '/dashboard/quiz',       color: '#06B6D4' },
-  { icon: Layers,   label: 'Create Flashcards',href: '/dashboard/flashcards', color: '#10B981' },
-  { icon: FolderOpen, label: 'Add Subject',    href: '/dashboard/subjects',   color: '#F59E0B' },
-  { icon: Youtube,  label: 'YouTube Video',    href: '/dashboard/video-notes',color: '#EF4444' },
+  { icon: Map,        label: 'Study Journey',    href: '/dashboard/journey',        color: '#10B981' },
+  { icon: Wand2,      label: 'Generate Notes',   href: '/dashboard/generate',       color: '#8B5CF6' },
+  { icon: Brain,      label: 'Create Quiz',      href: '/dashboard/quiz',           color: '#06B6D4' },
+  { icon: Layers,     label: 'Create Flashcards',href: '/dashboard/flashcards',     color: '#10B981' },
+  { icon: FolderOpen, label: 'Add Subject',      href: '/dashboard/subjects',       color: '#F59E0B' },
+  { icon: Youtube,    label: 'YouTube Video',    href: '/dashboard/video-notes',    color: '#EF4444' },
 ];
 
 /* ── Quick Capture FAB ── */
