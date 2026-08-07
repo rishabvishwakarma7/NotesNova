@@ -6,6 +6,7 @@ import {
   Users, FileText, MessageSquare, Brain, BarChart3, Activity,
   LogOut, RefreshCw, Search, ChevronLeft, ChevronRight, ShieldCheck,
   CalendarDays, Zap, ArrowLeft, X, Star, MessageCircle, CheckCircle2, Trash2,
+  Crown, Clock, Check, AlertCircle, Eye,
 } from 'lucide-react';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
@@ -99,6 +100,265 @@ function ChatModal({ chat, onClose }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/* ── Premium Requests Tab ── */
+function PremiumTab({ token }) {
+  const [requests,  setRequests]  = useState([]);
+  const [counts,    setCounts]    = useState({ pending:0, approved:0, rejected:0 });
+  const [loading,   setLoading]   = useState(true);
+  const [filter,    setFilter]    = useState('pending');
+  const [search,    setSearch]    = useState('');
+  const [page,      setPage]      = useState(1);
+  const [total,     setTotal]     = useState(0);
+  const [acting,    setActing]    = useState(null);
+  const [rejectModal, setRejectModal] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ status: filter, page, limit: 20 });
+      if (search) params.set('search', search);
+      const r = await fetch(`${API}/premium/admin/requests?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const d = await r.json();
+      setRequests(d.requests || []);
+      setTotal(d.total || 0);
+      if (d.counts) setCounts(d.counts);
+    } catch {}
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, [filter, page, search]);
+
+  const approve = async (id) => {
+    setActing(id);
+    try {
+      await fetch(`${API}/premium/admin/requests/${id}/approve`, {
+        method: 'PATCH', headers: { Authorization: `Bearer ${token}` },
+      });
+      load();
+    } catch {}
+    setActing(null);
+  };
+
+  const reject = async () => {
+    if (!rejectModal) return;
+    setActing(rejectModal);
+    try {
+      await fetch(`${API}/premium/admin/requests/${rejectModal}/reject`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: rejectReason || 'Payment not verified' }),
+      });
+      setRejectModal(null);
+      setRejectReason('');
+      load();
+    } catch {}
+    setActing(null);
+  };
+
+  const STATUS_CFG = {
+    pending:  { color: '#F59E0B', bg: 'rgba(245,158,11,0.1)',  label: 'Pending' },
+    approved: { color: '#10B981', bg: 'rgba(16,185,129,0.1)',  label: 'Approved' },
+    rejected: { color: '#F43F5E', bg: 'rgba(244,63,94,0.1)',   label: 'Rejected' },
+  };
+
+  return (
+    <motion.div key="premium" initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}>
+
+      {/* Reject modal */}
+      {rejectModal && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.75)', zIndex:100,
+          display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
+          onClick={() => setRejectModal(null)}>
+          <div style={{ width:'100%', maxWidth:400, background:'var(--bg-secondary)', borderRadius:20,
+            border:'1px solid var(--border-color)', padding:28 }}
+            onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontSize:17, fontWeight:800, color:'var(--text-primary)', marginBottom:16 }}>
+              Reject Request
+            </h3>
+            <p style={{ fontSize:13, color:'var(--text-secondary)', marginBottom:14 }}>Select a rejection reason:</p>
+            <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:16 }}>
+              {['Invalid UTR', 'Payment Not Received', 'Duplicate Payment', 'Wrong Amount', 'Other'].map(r => (
+                <button key={r} onClick={() => setRejectReason(r)}
+                  style={{ padding:'10px 14px', borderRadius:10, border:'none', cursor:'pointer', textAlign:'left',
+                    fontSize:13, fontWeight:500, transition:'all 0.12s',
+                    background: rejectReason===r ? 'rgba(244,63,94,0.12)' : 'var(--bg-tertiary)',
+                    color: rejectReason===r ? '#F43F5E' : 'var(--text-secondary)',
+                    outline: rejectReason===r ? '1.5px solid rgba(244,63,94,0.4)' : '1px solid var(--border-color)' }}>
+                  {r}
+                </button>
+              ))}
+            </div>
+            <div style={{ display:'flex', gap:10 }}>
+              <button onClick={reject} disabled={!rejectReason || acting === rejectModal}
+                style={{ flex:1, padding:'11px 0', borderRadius:11, border:'none', cursor:'pointer',
+                  background:'rgba(244,63,94,0.9)', color:'white', fontWeight:700, fontSize:14,
+                  opacity: rejectReason ? 1 : 0.5 }}>
+                Confirm Reject
+              </button>
+              <button onClick={() => { setRejectModal(null); setRejectReason(''); }}
+                style={{ flex:1, padding:'11px 0', borderRadius:11, cursor:'pointer', fontSize:14,
+                  background:'var(--bg-tertiary)', border:'1px solid var(--border-color)', color:'var(--text-secondary)' }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:24, flexWrap:'wrap', gap:12 }}>
+        <div>
+          <h2 style={{ fontSize:22, fontWeight:800, color:'var(--text-primary)', display:'flex', alignItems:'center', gap:10 }}>
+            <Crown size={22} color="#F59E0B" /> Premium Requests
+          </h2>
+          <p style={{ fontSize:13, color:'var(--text-muted)', marginTop:4 }}>
+            {counts.pending} pending · {counts.approved} approved · {counts.rejected} rejected
+          </p>
+        </div>
+        <button onClick={load} style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 16px',
+          borderRadius:10, background:'var(--bg-secondary)', border:'1px solid var(--border-color)',
+          cursor:'pointer', color:'var(--text-secondary)', fontSize:13 }}>
+          <RefreshCw size={14} /> Refresh
+        </button>
+      </div>
+
+      {/* Count chips */}
+      <div style={{ display:'flex', gap:10, marginBottom:20, flexWrap:'wrap' }}>
+        {[['pending','Pending',counts.pending,'#F59E0B'],
+          ['approved','Approved',counts.approved,'#10B981'],
+          ['rejected','Rejected',counts.rejected,'#F43F5E'],
+          ['','All',counts.pending+counts.approved+counts.rejected,'#8B5CF6'],
+        ].map(([f,label,count,color]) => (
+          <button key={f} onClick={() => { setFilter(f); setPage(1); }}
+            style={{ padding:'8px 18px', borderRadius:10, border:'none', cursor:'pointer', fontSize:13, fontWeight:700,
+              background: filter===f ? `${color}15` : 'var(--bg-secondary)',
+              color: filter===f ? color : 'var(--text-muted)',
+              outline: filter===f ? `1.5px solid ${color}40` : '1px solid var(--border-color)' }}>
+            {label} ({count})
+          </button>
+        ))}
+      </div>
+
+      {/* Search */}
+      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 13px',
+        borderRadius:11, background:'var(--bg-secondary)', border:'1px solid var(--border-color)',
+        marginBottom:16, maxWidth:400 }}>
+        <Search size={14} color="var(--text-muted)" />
+        <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
+          placeholder="Search name, email, UTR…"
+          style={{ flex:1, background:'none', border:'none', outline:'none',
+            color:'var(--text-primary)', fontSize:13, fontFamily:'inherit' }} />
+      </div>
+
+      {/* Requests list */}
+      {loading ? (
+        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+          {[1,2,3].map(i => <div key={i} className="skeleton" style={{ height:80, borderRadius:14 }} />)}
+        </div>
+      ) : requests.length === 0 ? (
+        <div style={{ textAlign:'center', padding:'48px 24px', background:'var(--bg-secondary)',
+          borderRadius:16, border:'1px solid var(--border-color)' }}>
+          <Crown size={36} color="var(--text-muted)" style={{ opacity:0.3, marginBottom:12 }} />
+          <p style={{ fontSize:15, color:'var(--text-muted)' }}>No {filter || ''} requests found</p>
+        </div>
+      ) : (
+        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+          {requests.map(req => {
+            const cfg = STATUS_CFG[req.status] || STATUS_CFG.pending;
+            return (
+              <div key={req._id} style={{ padding:'18px 20px', borderRadius:16,
+                background:'var(--bg-secondary)', border:`1px solid ${cfg.color}25` }}>
+                <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, flexWrap:'wrap' }}>
+                  {/* Left info */}
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8, flexWrap:'wrap' }}>
+                      <p style={{ fontSize:15, fontWeight:700, color:'var(--text-primary)' }}>{req.name}</p>
+                      <span style={{ fontSize:11, fontWeight:700, color:cfg.color,
+                        background:cfg.bg, padding:'2px 9px', borderRadius:8 }}>{cfg.label}</span>
+                      <span style={{ fontSize:11, color:'#8B5CF6', background:'rgba(139,92,246,0.1)',
+                        padding:'2px 9px', borderRadius:8 }}>{req.paymentApp}</span>
+                    </div>
+                    <p style={{ fontSize:12, color:'var(--text-muted)', marginBottom:6 }}>{req.email}
+                      {req.phone ? ` · ${req.phone}` : ''}
+                    </p>
+                    <div style={{ display:'flex', gap:16, fontSize:12, color:'var(--text-secondary)', flexWrap:'wrap' }}>
+                      <span>TXN: <strong style={{ color:'var(--text-primary)', fontFamily:'monospace' }}>{req.transactionId}</strong></span>
+                      <span>UTR: <strong style={{ color:'var(--text-primary)', fontFamily:'monospace' }}>{req.utrNumber}</strong></span>
+                      <span>₹{req.amount}</span>
+                      <span>{new Date(req.createdAt).toLocaleString('en-IN',{ month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}</span>
+                    </div>
+                    {req.rejectionReason && (
+                      <p style={{ fontSize:12, color:'#F43F5E', marginTop:6 }}>Reason: {req.rejectionReason}</p>
+                    )}
+                  </div>
+
+                  {/* Action buttons */}
+                  {req.status === 'pending' && (
+                    <div style={{ display:'flex', gap:8, flexShrink:0 }}>
+                      <button onClick={() => approve(req._id)} disabled={acting === req._id}
+                        style={{ padding:'9px 18px', borderRadius:10, border:'none', cursor:'pointer',
+                          background:'rgba(16,185,129,0.15)', color:'#10B981', fontWeight:700, fontSize:13,
+                          display:'flex', alignItems:'center', gap:6, transition:'all 0.15s',
+                          outline:'1.5px solid rgba(16,185,129,0.35)' }}>
+                        {acting === req._id
+                          ? <span style={{ width:14, height:14, borderRadius:'50%', border:'2px solid #10B981', borderTopColor:'transparent', animation:'spin 0.7s linear infinite', display:'inline-block' }} />
+                          : <Check size={14} />}
+                        Approve
+                      </button>
+                      <button onClick={() => { setRejectModal(req._id); setRejectReason(''); }}
+                        style={{ padding:'9px 18px', borderRadius:10, border:'none', cursor:'pointer',
+                          background:'rgba(244,63,94,0.12)', color:'#F43F5E', fontWeight:700, fontSize:13,
+                          display:'flex', alignItems:'center', gap:6,
+                          outline:'1.5px solid rgba(244,63,94,0.3)' }}>
+                        <X size={14} /> Reject
+                      </button>
+                    </div>
+                  )}
+                  {req.status === 'approved' && (
+                    <span style={{ fontSize:12, color:'#10B981', display:'flex', alignItems:'center', gap:5 }}>
+                      <CheckCircle2 size={14} /> Approved
+                      {req.reviewedAt && ` · ${new Date(req.reviewedAt).toLocaleDateString('en-IN',{ month:'short', day:'numeric' })}`}
+                    </span>
+                  )}
+                  {req.status === 'rejected' && (
+                    <span style={{ fontSize:12, color:'#F43F5E', display:'flex', alignItems:'center', gap:5 }}>
+                      <AlertCircle size={14} /> Rejected
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {total > 20 && (
+        <div style={{ display:'flex', justifyContent:'center', gap:8, marginTop:20 }}>
+          <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page === 1}
+            style={{ padding:'8px 16px', borderRadius:9, border:'none', cursor:'pointer',
+              background:'var(--bg-secondary)', border:'1px solid var(--border-color)',
+              color:'var(--text-secondary)', fontSize:13, opacity: page===1 ? 0.4 : 1 }}>
+            ← Prev
+          </button>
+          <span style={{ padding:'8px 14px', fontSize:13, color:'var(--text-muted)' }}>
+            Page {page} of {Math.ceil(total/20)}
+          </span>
+          <button onClick={() => setPage(p => p+1)} disabled={page >= Math.ceil(total/20)}
+            style={{ padding:'8px 16px', borderRadius:9, border:'none', cursor:'pointer',
+              background:'var(--bg-secondary)', border:'1px solid var(--border-color)',
+              color:'var(--text-secondary)', fontSize:13, opacity: page>=Math.ceil(total/20) ? 0.4 : 1 }}>
+            Next →
+          </button>
+        </div>
+      )}
+    </motion.div>
   );
 }
 
@@ -363,6 +623,7 @@ export default function AdminPanel() {
   const tabs = [
     { id:'overview', label:'Overview',  icon:BarChart3 },
     { id:'users',    label:'Users',     icon:Users },
+    { id:'premium',  label:'Premium',   icon:Crown },
     { id:'chats',    label:'AI Chats',  icon:MessageSquare },
     { id:'activity', label:'Activity',  icon:Activity },
     { id:'feedback', label:'Feedback',  icon:MessageCircle },
@@ -625,6 +886,11 @@ export default function AdminPanel() {
                   </div>
                 ) : <p style={{ color:'var(--text-muted)', fontSize:14 }}>Loading activity…</p>}
               </motion.div>
+            )}
+
+            {/* PREMIUM REQUESTS */}
+            {tab === 'premium' && (
+              <PremiumTab token={token} />
             )}
 
             {/* FEEDBACK */}
