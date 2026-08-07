@@ -1,11 +1,11 @@
 'use client';
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Crown, Zap, Check, Copy, Loader2, ArrowRight,
-  Shield, Star, Smartphone, CreditCard, ChevronRight, Info,
+  Shield, Smartphone, CreditCard, Info,
 } from 'lucide-react';
 import api from '@/services/api';
 import { useToast } from '@/components/ui/Toast';
@@ -22,6 +22,116 @@ const FEATURES = [
 const UPI_ID = 'rishuxv@ybl';
 const MERCHANT = 'Rishab Vishwakarma';
 const AMOUNT = 99;
+
+// ── Stable PaymentForm — 100% uncontrolled inputs ──
+// Inputs use refs only. Zero state updates while typing → zero re-renders → no focus loss.
+function PaymentForm({ onSubmit, onBack, submitting }) {
+  const refs = {
+    transactionId: useRef(null),
+    utrNumber:     useRef(null),
+    name:          useRef(null),
+    email:         useRef(null),
+    phone:         useRef(null),
+  };
+  const [paymentApp, setPaymentApp] = useState('PhonePe');
+  const goldGrad = 'linear-gradient(135deg, #F59E0B, #FBBF24, #D97706)';
+
+  const handleSubmit = () => {
+    onSubmit({
+      transactionId: refs.transactionId.current?.value || '',
+      utrNumber:     refs.utrNumber.current?.value     || '',
+      name:          refs.name.current?.value          || '',
+      email:         refs.email.current?.value         || '',
+      phone:         refs.phone.current?.value         || '',
+      paymentApp,
+    });
+  };
+
+  const inputStyle = {
+    width:'100%', padding:'11px 14px', borderRadius:11, fontSize:14,
+    background:'var(--bg-tertiary)', border:'1px solid var(--border-color)',
+    color:'var(--text-primary)', outline:'none', boxSizing:'border-box', fontFamily:'inherit',
+  };
+
+  const fields = [
+    { label:'Transaction ID *',  ref: refs.transactionId, placeholder:'e.g. T2024112345678' },
+    { label:'UTR Number *',       ref: refs.utrNumber,     placeholder:'12-digit UTR from receipt' },
+    { label:'Your Full Name *',   ref: refs.name,          placeholder:'As on your payment app' },
+    { label:'Email Address *',    ref: refs.email,         placeholder:'your@email.com', type:'email' },
+    { label:'Mobile Number',      ref: refs.phone,         placeholder:'10-digit number', type:'tel' },
+  ];
+
+  return (
+    <div style={{ padding:'28px', borderRadius:20, background:'var(--bg-secondary)',
+      border:'1px solid var(--border-color)', marginBottom:16 }}>
+      <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:20}}>
+        <div style={{width:38,height:38,borderRadius:10,background:'rgba(16,185,129,0.12)',
+          display:'flex',alignItems:'center',justifyContent:'center'}}>
+          <CreditCard size={18} color="#10B981" />
+        </div>
+        <div>
+          <h2 style={{fontSize:18,fontWeight:800,color:'var(--text-primary)'}}>Confirm Payment</h2>
+          <p style={{fontSize:12,color:'var(--text-muted)'}}>Enter your transaction details for verification</p>
+        </div>
+      </div>
+
+      <div style={{display:'flex',flexDirection:'column',gap:14}}>
+        {fields.map(f => (
+          <div key={f.label}>
+            <label style={{fontSize:12,fontWeight:600,color:'var(--text-secondary)',marginBottom:6,display:'block'}}>
+              {f.label}
+            </label>
+            <input
+              ref={f.ref}
+              type={f.type || 'text'}
+              placeholder={f.placeholder}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              style={inputStyle}
+              onFocus={e => e.target.style.borderColor = '#F59E0B80'}
+              onBlur={e => e.target.style.borderColor = 'var(--border-color)'}
+            />
+          </div>
+        ))}
+
+        <div>
+          <label style={{fontSize:12,fontWeight:600,color:'var(--text-secondary)',marginBottom:8,display:'block'}}>
+            Payment App *
+          </label>
+          <div style={{display:'flex',gap:7,flexWrap:'wrap'}}>
+            {['PhonePe','Google Pay','Paytm','BHIM','Other'].map(app => (
+              <button key={app} onClick={() => setPaymentApp(app)}
+                style={{ padding:'7px 14px', borderRadius:9, border:'none', cursor:'pointer',
+                  fontSize:12, fontWeight:600, transition:'all 0.15s',
+                  background: paymentApp===app ? 'rgba(245,158,11,0.15)' : 'var(--bg-tertiary)',
+                  color: paymentApp===app ? '#F59E0B' : 'var(--text-secondary)',
+                  outline: paymentApp===app ? '1.5px solid rgba(245,158,11,0.5)' : '1px solid var(--border-color)' }}>
+                {app}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <button onClick={handleSubmit} disabled={submitting}
+          style={{ width:'100%', padding:'13px 28px', borderRadius:13, border:'none',
+            cursor: submitting ? 'wait' : 'pointer', background: goldGrad, color:'white',
+            fontSize:15, fontWeight:800, display:'flex', alignItems:'center',
+            justifyContent:'center', gap:8, boxShadow:'0 6px 24px rgba(245,158,11,0.4)',
+            opacity: submitting ? 0.7 : 1 }}>
+          {submitting ? <Loader2 size={16} style={{animation:'spin 1s linear infinite'}}/> : <Shield size={16}/>}
+          {submitting ? 'Submitting…' : 'Submit for Verification'}
+        </button>
+      </div>
+
+      <button onClick={onBack} style={{ width:'100%', padding:'10px', background:'none',
+        border:'none', cursor:'pointer', color:'var(--text-muted)', fontSize:13, marginTop:4 }}>
+        ← Back
+      </button>
+    </div>
+  );
+}
 
 // Steps: plan → intent → instructions → qr → form → done
 export default function PremiumPage() {
@@ -51,14 +161,15 @@ export default function PremiumPage() {
     setTimeout(() => setCopied(false), 2500);
   };
 
-  const handleSubmit = async () => {
-    if (!form.transactionId.trim() || !form.utrNumber.trim() || !form.name.trim() || !form.email.trim()) {
+  const handleSubmit = async (formData) => {
+    const data = formData || form;
+    if (!data.transactionId?.trim() || !data.utrNumber?.trim() || !data.name?.trim() || !data.email?.trim()) {
       toast({ message: 'Please fill all required fields', type: 'error' });
       return;
     }
     setSubmitting(true);
     try {
-      await api.post('/premium/request', form);
+      await api.post('/premium/request', data);
       setStep('done');
     } catch (err) {
       toast({ message: err.response?.data?.error || 'Submission failed', type: 'error' });
@@ -365,59 +476,11 @@ export default function PremiumPage() {
         {/* ── STEP 5: FORM ── */}
         {step === 'form' && (
           <motion.div key="form" initial={{opacity:0,x:20}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-20}}>
-            <Card>
-              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:20}}>
-                <div style={{width:38,height:38,borderRadius:10,background:'rgba(16,185,129,0.12)',
-                  display:'flex',alignItems:'center',justifyContent:'center'}}>
-                  <CreditCard size={18} color="#10B981" />
-                </div>
-                <div>
-                  <h2 style={{fontSize:18,fontWeight:800,color:'var(--text-primary)'}}>Confirm Payment</h2>
-                  <p style={{fontSize:12,color:'var(--text-muted)'}}>Enter your transaction details for verification</p>
-                </div>
-              </div>
-              <div style={{display:'flex',flexDirection:'column',gap:14}}>
-                {[
-                  {label:'Transaction ID *',    key:'transactionId', placeholder:'e.g. T2024112345678'},
-                  {label:'UTR Number *',         key:'utrNumber',     placeholder:'12-digit UTR from payment receipt'},
-                  {label:'Your Full Name *',     key:'name',          placeholder:'As on your payment app'},
-                  {label:'Email Address *',      key:'email',         placeholder:'your@email.com', type:'email'},
-                  {label:'Mobile Number',        key:'phone',         placeholder:'10-digit number', type:'tel'},
-                ].map(f=>(
-                  <div key={f.key}>
-                    <label style={{fontSize:12,fontWeight:600,color:'var(--text-secondary)',marginBottom:6,display:'block'}}>{f.label}</label>
-                    <input value={form[f.key]} type={f.type||'text'}
-                      onChange={e=>setForm(p=>({...p,[f.key]:e.target.value}))}
-                      placeholder={f.placeholder}
-                      style={{width:'100%',padding:'11px 14px',borderRadius:11,fontSize:14,
-                        background:'var(--bg-tertiary)',border:'1px solid var(--border-color)',
-                        color:'var(--text-primary)',outline:'none',boxSizing:'border-box',fontFamily:'inherit'}}
-                      onFocus={e=>e.target.style.borderColor='#F59E0B80'}
-                      onBlur={e=>e.target.style.borderColor='var(--border-color)'} />
-                  </div>
-                ))}
-                <div>
-                  <label style={{fontSize:12,fontWeight:600,color:'var(--text-secondary)',marginBottom:8,display:'block'}}>Payment App *</label>
-                  <div style={{display:'flex',gap:7,flexWrap:'wrap'}}>
-                    {['PhonePe','Google Pay','Paytm','BHIM','Other'].map(app=>(
-                      <button key={app} onClick={()=>setForm(p=>({...p,paymentApp:app}))}
-                        style={{padding:'7px 14px',borderRadius:9,border:'none',cursor:'pointer',fontSize:12,fontWeight:600,
-                          background:form.paymentApp===app?'rgba(245,158,11,0.15)':'var(--bg-tertiary)',
-                          color:form.paymentApp===app?'#F59E0B':'var(--text-secondary)',
-                          outline:form.paymentApp===app?'1.5px solid rgba(245,158,11,0.5)':'1px solid var(--border-color)',
-                          transition:'all 0.15s'}}>
-                        {app}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <GoldBtn onClick={handleSubmit} disabled={submitting}>
-                  {submitting ? <Loader2 size={16} style={{animation:'spin 1s linear infinite'}}/> : <Shield size={16}/>}
-                  {submitting ? 'Submitting…' : 'Submit for Verification'}
-                </GoldBtn>
-              </div>
-            </Card>
-            <BackBtn to="qr" />
+            <PaymentForm
+              submitting={submitting}
+              onSubmit={handleSubmit}
+              onBack={() => setStep('qr')}
+            />
           </motion.div>
         )}
 
