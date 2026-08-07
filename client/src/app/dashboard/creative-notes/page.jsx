@@ -48,7 +48,7 @@ function Inner() {
   useEffect(() => {
     api.get('/premium/status')
       .then(r => setIsPremium(r.data?.isPremium || false))
-      .catch(() => setIsPremium(true));
+      .catch(() => setIsPremium(false)); // fail closed — block on API error
   }, []);
 
   const generate = async () => {

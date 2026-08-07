@@ -1,5 +1,6 @@
 import { generateTextWithProvider } from '../config/aiProvider.js';
 import Note from '../models/Note.js';
+import User from '../models/User.js';
 
 const NOTE_TYPE_PROMPTS = {
   detailed: 'Generate comprehensive, detailed study notes on the given topic. Include definitions, explanations, examples, and key takeaways. Use markdown headings, bold for key terms, and organized sections.',
@@ -149,9 +150,15 @@ export const deleteNote = async (req, res) => {
   }
 };
 
-// ── Creative Notes ────────────────────────────────────────────────────────────
+// ── Creative Notes (Premium only) ────────────────────────────────────────────
 export const generateCreativeNotes = async (req, res) => {
   try {
+    // Server-side premium check
+    const user = await User.findOne({ clerkId: req.userId });
+    if (!user?.isPremium) {
+      return res.status(403).json({ error: 'Creative Notes is a Premium feature. Upgrade at /dashboard/premium' });
+    }
+
     const { topic, subject = '', level = 'intermediate', provider = 'groq' } = req.body;
     if (!topic) return res.status(400).json({ error: 'Topic is required' });
 
