@@ -220,3 +220,26 @@ export const revokePremium = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// ── Admin: grant premium by email ─────────────────────────────────────────
+export const grantPremiumByEmail = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email?.trim()) return res.status(400).json({ error: 'Email is required' });
+
+    const user = await User.findOneAndUpdate(
+      { email: email.trim().toLowerCase() },
+      {
+        isPremium: true, premiumStatus: 'active',
+        premiumSince: new Date(), premiumExpiry: null,
+        premiumPlan: 'admin_grant', approvedBy: 'admin', approvedAt: new Date(),
+      },
+      { new: true }
+    );
+
+    if (!user) return res.status(404).json({ error: `No user found with email: ${email}` });
+    res.json({ message: `Premium granted to ${user.name} (${user.email})`, user: { name: user.name, email: user.email } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

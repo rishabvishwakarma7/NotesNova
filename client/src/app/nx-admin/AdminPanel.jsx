@@ -115,6 +115,10 @@ function PremiumTab({ token }) {
   const [acting,    setActing]    = useState(null);
   const [rejectModal, setRejectModal] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
+  // Grant by email
+  const [grantEmail,   setGrantEmail]   = useState('');
+  const [granting,     setGranting]     = useState(false);
+  const [grantMsg,     setGrantMsg]     = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -159,6 +163,26 @@ function PremiumTab({ token }) {
       load();
     } catch {}
     setActing(null);
+  };
+
+  const grantByEmail = async () => {
+    if (!grantEmail.trim()) return;
+    setGranting(true);
+    setGrantMsg(null);
+    try {
+      const r = await fetch(`${API}/premium/admin/grant-by-email`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: grantEmail.trim() }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error);
+      setGrantMsg({ type: 'success', text: d.message });
+      setGrantEmail('');
+    } catch (err) {
+      setGrantMsg({ type: 'error', text: err.message });
+    }
+    setGranting(false);
   };
 
   const STATUS_CFG = {
@@ -226,6 +250,45 @@ function PremiumTab({ token }) {
           cursor:'pointer', color:'var(--text-secondary)', fontSize:13 }}>
           <RefreshCw size={14} /> Refresh
         </button>
+      </div>
+
+      {/* Grant by Email */}
+      <div style={{ padding:'20px 22px', borderRadius:16, background:'rgba(245,158,11,0.07)',
+        border:'1px solid rgba(245,158,11,0.25)', marginBottom:24 }}>
+        <p style={{ fontSize:13, fontWeight:700, color:'#F59E0B', marginBottom:12,
+          display:'flex', alignItems:'center', gap:7 }}>
+          <Crown size={15} /> Grant Premium Directly by Email
+        </p>
+        <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
+          <input
+            value={grantEmail}
+            onChange={e => { setGrantEmail(e.target.value); setGrantMsg(null); }}
+            onKeyDown={e => e.key === 'Enter' && grantByEmail()}
+            placeholder="user@email.com"
+            style={{ flex:1, minWidth:220, padding:'10px 14px', borderRadius:10, fontSize:13,
+              background:'var(--bg-secondary)', border:'1px solid var(--border-color)',
+              color:'var(--text-primary)', outline:'none', fontFamily:'inherit' }}
+            onFocus={e => e.target.style.borderColor = '#F59E0B80'}
+            onBlur={e => e.target.style.borderColor = 'var(--border-color)'}
+          />
+          <button onClick={grantByEmail} disabled={!grantEmail.trim() || granting}
+            style={{ padding:'10px 22px', borderRadius:10, border:'none', cursor:'pointer',
+              background:'linear-gradient(135deg,#F59E0B,#FBBF24)', color:'white',
+              fontWeight:700, fontSize:13, display:'flex', alignItems:'center', gap:7,
+              opacity: grantEmail.trim() ? 1 : 0.5 }}>
+            {granting
+              ? <span style={{ width:14, height:14, borderRadius:'50%', border:'2px solid white',
+                  borderTopColor:'transparent', animation:'spin 0.7s linear infinite', display:'inline-block' }} />
+              : <Crown size={14} />}
+            {granting ? 'Granting…' : 'Grant Premium'}
+          </button>
+        </div>
+        {grantMsg && (
+          <p style={{ marginTop:10, fontSize:13, fontWeight:600,
+            color: grantMsg.type === 'success' ? '#10B981' : '#F43F5E' }}>
+            {grantMsg.type === 'success' ? '✅' : '❌'} {grantMsg.text}
+          </p>
+        )}
       </div>
 
       {/* Count chips */}

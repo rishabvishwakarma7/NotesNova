@@ -10,20 +10,22 @@ import {
   rejectPremiumRequest,
   grantPremium,
   revokePremium,
+  grantPremiumByEmail,
 } from '../controllers/premiumController.js';
 
 const router = Router();
 
 // User routes
-router.get('/upi-config',   getUpiConfig);
-router.get('/status',       requireAuth, getPremiumStatus);
-router.post('/request',     requireAuth, submitPremiumRequest);
+router.get('/upi-config',               getUpiConfig);
+router.get('/status',                   requireAuth, getPremiumStatus);
+router.post('/request',                 requireAuth, submitPremiumRequest);
 
 // Admin routes
-router.get('/admin/requests',           requireAdmin, getAdminPremiumRequests);
-router.patch('/admin/requests/:id/approve', requireAdmin, approvePremiumRequest);
-router.patch('/admin/requests/:id/reject',  requireAdmin, rejectPremiumRequest);
-router.post('/admin/grant/:userId',     requireAdmin, grantPremium);
-router.post('/admin/revoke/:userId',    requireAdmin, revokePremium);
+router.get('/admin/requests',                   requireAdmin, getAdminPremiumRequests);
+router.patch('/admin/requests/:id/approve',     requireAdmin, approvePremiumRequest);
+router.patch('/admin/requests/:id/reject',      requireAdmin, rejectPremiumRequest);
+router.post('/admin/grant/:userId',             requireAdmin, grantPremium);
+router.post('/admin/revoke/:userId',            requireAdmin, revokePremium);
+router.post('/admin/grant-by-email',            requireAdmin, grantPremiumByEmail);
 
 export default router;

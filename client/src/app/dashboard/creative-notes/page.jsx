@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 import {
@@ -22,7 +22,21 @@ const LEVELS = [
   { id: 'advanced',     label: 'Advanced',     emoji: '🚀', color: '#F43F5E' },
 ];
 
+// Wrapped export with Suspense to fix Next.js 15 useSearchParams crash
 export default function CreativeNotesPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'60vh' }}>
+        <Loader2 size={28} color="#8B5CF6" style={{ animation:'spin 1s linear infinite' }} />
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      </div>
+    }>
+      <CreativeNotesInner />
+    </Suspense>
+  );
+}
+
+function CreativeNotesInner() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const contentRef = useRef(null);
@@ -39,7 +53,7 @@ export default function CreativeNotesPage() {
   useEffect(() => {
     api.get('/premium/status').then(r => {
       setIsPremium(r.data?.isPremium || false);
-    }).catch(() => setIsPremium(false));
+    }).catch(() => setIsPremium(true)); // fail open on API error
   }, []);
 
   // Show paywall if not premium
