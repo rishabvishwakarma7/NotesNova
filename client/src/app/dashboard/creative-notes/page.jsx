@@ -53,17 +53,18 @@ export default function CreativeNotesPage() {
     if (!notes || saving) return;
     setSaving(true);
     try {
-      // Convert to HTML for the note editor
       const html = buildNoteHTML(notes);
+      // Always use the user-selected subject — don't trust AI-generated subject name
+      const noteSubject = subject || notes.subject || '';
       await api.post('/notes', {
         title: notes.title || topic,
         content: html,
-        subject: notes.subject || subject,
+        subject: noteSubject,
         noteType: 'detailed',
-        tags: [subject, level].filter(Boolean),
+        tags: [noteSubject, level].filter(Boolean),
       });
       setSaved(true);
-      toast({ message: 'Saved to My Notes!', type: 'success' });
+      toast({ message: noteSubject ? `Saved to "${noteSubject}"!` : 'Saved to My Notes!', type: 'success' });
       setTimeout(() => setSaved(false), 3000);
     } catch {
       toast({ message: 'Failed to save', type: 'error' });
@@ -191,6 +192,11 @@ export default function CreativeNotesPage() {
             </>
           )}
         </div>
+        {notes && !subject && (
+          <p style={{ fontSize: 12, color: '#F59E0B', marginTop: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+            💡 Select a subject above before saving so this note appears in your Subjects section.
+          </p>
+        )}
       </motion.div>
 
       {/* Loading skeleton */}
