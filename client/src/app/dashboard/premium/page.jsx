@@ -307,12 +307,20 @@ export default function PremiumPage() {
                   Open PhonePe → Scan QR → Pay <strong style={{color:'#F59E0B'}}>₹99</strong>
                 </p>
 
-                {/* QR Image */}
+                {/* QR Image — generated from UPI ID */}
                 <div style={{display:'inline-block',padding:16,background:'white',borderRadius:20,
                   boxShadow:'0 8px 40px rgba(245,158,11,0.25), 0 0 0 3px rgba(245,158,11,0.2)',
-                  marginBottom:20}}>
-                  <img src="/phonepe-qr.png" alt="PhonePe QR Code" width={200} height={200}
-                    style={{display:'block',borderRadius:8}} />
+                  marginBottom:20, position:'relative'}}>
+                  {/* PhonePe logo overlay */}
+                  <div style={{position:'absolute',top:8,right:8,width:28,height:28,borderRadius:'50%',
+                    background:'#5f259f',display:'flex',alignItems:'center',justifyContent:'center',
+                    fontSize:14,fontWeight:900,color:'white',zIndex:1}}>₱</div>
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(MERCHANT)}&am=${AMOUNT}&cu=INR&tn=${encodeURIComponent('NoteNova Premium')}`)}&format=png&margin=2`}
+                    alt="PhonePe QR Code"
+                    width={200} height={200}
+                    style={{display:'block',borderRadius:8}}
+                  />
                 </div>
 
                 <p style={{fontSize:14,fontWeight:700,color:'var(--text-primary)',marginBottom:4}}>
