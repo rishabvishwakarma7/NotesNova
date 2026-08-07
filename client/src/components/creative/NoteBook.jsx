@@ -1,12 +1,7 @@
 'use client';
-/**
- * NoteBook — PDF-inspired visual study booklet renderer
- * Inspired by python_world_in notebook style:
- * - Spiral binding, colored section headers, code boxes, star bullets
- * - Flowcharts with SVG arrows, comparison tables, animated quiz
- */
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Link from 'next/link';
 
 // ── Color palette (semantic, never random) ────────────────────────────────
 const C = {
@@ -298,9 +293,14 @@ function Quiz({ questions }) {
 }
 
 // ── Section renderers ──────────────────────────────────────────────────────
-function Section({ s, i }) {
+function Section({ s, i, cardBg, textPrimary, textSecondary }) {
   const th = THEME[s.type] || { c:C.blue, e:'📄' };
   const { c, e } = th;
+  const [copied, setCopied] = useState(false);
+  const copyMd = () => {
+    navigator.clipboard.writeText(sectionToMd(s));
+    setCopied(true); setTimeout(()=>setCopied(false), 2000);
+  };
 
   return (
     <motion.div id={`nb-${i}`} initial={{opacity:0,y:16}} animate={{opacity:1,y:0}}
@@ -314,7 +314,18 @@ function Section({ s, i }) {
 
       {/* Content */}
       <div style={{padding:'22px 24px 22px 30px'}}>
-        <SecHead emoji={e} title={s.title || s.type} color={c}/>
+        <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:8}}>
+          <div style={{flex:1}}><SecHead emoji={e} title={s.title || s.type} color={c}/></div>
+          {/* Feature 9: Copy as markdown */}
+          <button onClick={copyMd} className="nb-noprint"
+            style={{padding:'4px 10px',borderRadius:8,border:'1px solid',cursor:'pointer',fontSize:11,
+              fontWeight:600,flexShrink:0,marginTop:2,transition:'all .15s',
+              borderColor:copied?'rgba(16,185,129,.4)':'var(--border-color)',
+              background:copied?'rgba(16,185,129,.1)':'transparent',
+              color:copied?'#10B981':'var(--text-muted)'}}>
+            {copied?'✓ Copied':'⧉ MD'}
+          </button>
+        </div>
 
         {/* OVERVIEW */}
         {s.type==='overview' && <>
@@ -467,7 +478,7 @@ function Section({ s, i }) {
 }
 
 // ── Cover ──────────────────────────────────────────────────────────────────
-function Cover({ notes }) {
+function Cover({ notes, cardBg, textPrimary }) {
   const lvlC = {beginner:'#10B981',intermediate:'#6366F1',advanced:'#F43F5E'};
   const col = lvlC[notes.level] || '#8B5CF6';
   return (
@@ -532,15 +543,429 @@ function TOC({ sections }) {
   );
 }
 
+// ── Feature 6: Flashcard Deck ──────────────────────────────────────────────
+function FlashcardDeck({ cards, onClose }) {
+  const [idx, setIdx] = useState(0);
+  const [flipped, setFlipped] = useState(false);
+  const [known, setKnown] = useState([]);
+  const [unknown, setUnknown] = useState([]);
+
+  if (!cards.length) return null;
+  const done = idx >= cards.length;
+  const score = done ? Math.round((known.length / cards.length) * 100) : 0;
+
+  const mark = (isKnown) => {
+    if (isKnown) setKnown(p=>[...p, idx]); else setUnknown(p=>[...p, idx]);
+    setFlipped(false);
+    setTimeout(() => setIdx(i => i + 1), 200);
+  };
+
+  return (
+    <div style={{textAlign:'center'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
+        <p style={{fontSize:14,fontWeight:700,color:'var(--text-primary)'}}>
+          🃏 Flashcards — {Math.min(idx+1, cards.length)}/{cards.length}
+        </p>
+        <button onClick={onClose} style={{background:'none',border:'none',cursor:'pointer',
+          color:'var(--text-muted)',fontSize:13}}>✕ Close</button>
+      </div>
+
+      {/* Progress */}
+      <div style={{height:6,borderRadius:3,background:'var(--bg-tertiary)',overflow:'hidden',marginBottom:24}}>
+        <motion.div animate={{width:`${(idx/cards.length)*100}%`}}
+          style={{height:'100%',background:'linear-gradient(90deg,#8B5CF6,#06B6D4)',borderRadius:3}}/>
+      </div>
+
+      {done ? (
+        <div style={{textAlign:'center',padding:'24px 0'}}>
+          <div style={{fontSize:48,marginBottom:12}}>{score>=80?'🏆':score>=50?'👍':'📚'}</div>
+          <p style={{fontSize:24,fontWeight:900,color:score>=80?'#10B981':score>=50?'#F59E0B':'#F43F5E',marginBottom:8}}>{score}%</p>
+          <p style={{fontSize:14,color:'var(--text-secondary)',marginBottom:20}}>{known.length} known · {unknown.length} to review</p>
+          <div style={{display:'flex',gap:10,justifyContent:'center'}}>
+            <button onClick={()=>{setIdx(0);setFlipped(false);setKnown([]);setUnknown([]);}}
+              style={{padding:'10px 20px',borderRadius:12,border:'none',cursor:'pointer',
+                background:'var(--gradient-primary)',color:'white',fontWeight:700,fontSize:13}}>
+              🔄 Restart
+            </button>
+            {unknown.length > 0 && (
+              <button onClick={()=>{
+                const wrongCards = unknown.map(i=>cards[i]);
+                setIdx(0);setFlipped(false);setKnown([]);setUnknown([]);
+              }} style={{padding:'10px 20px',borderRadius:12,border:'none',cursor:'pointer',
+                background:'rgba(244,63,94,.1)',color:'#F43F5E',fontWeight:700,fontSize:13}}>
+                ❌ Review Missed ({unknown.length})
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Flip card */}
+          <div style={{perspective:1000,maxWidth:500,margin:'0 auto 24px'}}>
+            <motion.div onClick={()=>setFlipped(f=>!f)}
+              animate={{rotateY:flipped?180:0}} transition={{duration:.5}}
+              style={{position:'relative',height:200,cursor:'pointer',
+                transformStyle:'preserve-3d'}}>
+              {/* Front */}
+              <div style={{position:'absolute',inset:0,backfaceVisibility:'hidden',borderRadius:20,
+                padding:28,display:'flex',flexDirection:'column',alignItems:'center',
+                justifyContent:'center',textAlign:'center',
+                background:'var(--bg-secondary)',border:'2px solid rgba(139,92,246,.3)',
+                boxShadow:'0 8px 32px rgba(139,92,246,.15)'}}>
+                <p style={{fontSize:12,fontWeight:700,color:'#8B5CF6',textTransform:'uppercase',
+                  letterSpacing:'.08em',marginBottom:12}}>Question</p>
+                <p style={{fontSize:18,fontWeight:700,color:'var(--text-primary)',lineHeight:1.4}}>{cards[idx]?.q}</p>
+                <p style={{fontSize:11,color:'var(--text-muted)',marginTop:16}}>Click to reveal answer</p>
+              </div>
+              {/* Back */}
+              <div style={{position:'absolute',inset:0,backfaceVisibility:'hidden',
+                transform:'rotateY(180deg)',borderRadius:20,padding:28,
+                display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
+                textAlign:'center',
+                background:'linear-gradient(135deg,rgba(16,185,129,.12),rgba(6,182,212,.08))',
+                border:'2px solid rgba(16,185,129,.3)'}}>
+                <p style={{fontSize:12,fontWeight:700,color:'#10B981',textTransform:'uppercase',
+                  letterSpacing:'.08em',marginBottom:12}}>Answer</p>
+                <p style={{fontSize:15,color:'var(--text-primary)',lineHeight:1.6}}>{cards[idx]?.a}</p>
+              </div>
+            </motion.div>
+          </div>
+          {flipped && (
+            <div style={{display:'flex',gap:12,justifyContent:'center'}}>
+              <button onClick={()=>mark(false)}
+                style={{padding:'12px 28px',borderRadius:13,border:'none',cursor:'pointer',
+                  background:'rgba(244,63,94,.12)',color:'#F43F5E',fontWeight:800,fontSize:14}}>
+                ✗ Still Learning
+              </button>
+              <button onClick={()=>mark(true)}
+                style={{padding:'12px 28px',borderRadius:13,border:'none',cursor:'pointer',
+                  background:'rgba(16,185,129,.12)',color:'#10B981',fontWeight:800,fontSize:14}}>
+                ✓ Got It!
+              </button>
+            </div>
+          )}
+          {!flipped && (
+            <p style={{fontSize:12,color:'var(--text-muted)'}}>
+              ✅ {known.length} known · ❌ {unknown.length} to review
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Feature 5: AI Follow-up per section ───────────────────────────────────
+function AIFollowUp({ topic, subject, cardBg }) {
+  const [loading, setLoading] = useState(false);
+  const [result,  setResult]  = useState('');
+  const [action,  setAction]  = useState('');
+
+  const actions = [
+    { id:'simpler',   label:'🐣 Explain Simpler',      prompt:`Explain ${topic} in the simplest possible way for a complete beginner. Use analogies.` },
+    { id:'deeper',    label:'🔬 Go Deeper',             prompt:`Explain the advanced/deep aspects of ${topic} that most textbooks skip. Include edge cases.` },
+    { id:'interview', label:'💼 Interview Questions',   prompt:`Give 5 likely interview questions about ${topic} with detailed model answers.` },
+    { id:'compare',   label:'⚖️ Compare with Similar',  prompt:`Compare ${topic} with similar concepts in ${subject||'this subject'}. When to use which?` },
+    { id:'realworld', label:'🌍 Real-World Uses',       prompt:`Give 5 real-world applications of ${topic} used in industry today with specific examples.` },
+  ];
+
+  const ask = async (act) => {
+    setLoading(true); setAction(act.id); setResult('');
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+      const token = window.Clerk?.session ? await window.Clerk.session.getToken() : null;
+      const r = await fetch(`${apiUrl}/chat/stream`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},
+        body:JSON.stringify({
+          messages:[{role:'user',content:act.prompt}],
+          mode:'study',
+        }),
+      });
+      const reader = r.body.getReader();
+      const dec = new TextDecoder();
+      let out = '';
+      while(true) {
+        const {done,value} = await reader.read();
+        if(done) break;
+        for(const line of dec.decode(value).split('\n')) {
+          if(line.startsWith('data: ')&&line!=='data: [DONE]') {
+            try { const d=JSON.parse(line.slice(6)); if(d.content){out+=d.content;setResult(out);} } catch {}
+          }
+        }
+      }
+    } catch { setResult('Failed to get AI response. Please try again.'); }
+    setLoading(false);
+  };
+
+  return (
+    <motion.div initial={{opacity:0,y:10}} animate={{opacity:1,y:0}} transition={{delay:.25}}
+      style={{padding:'20px 22px',borderRadius:16,background:cardBg,
+        border:'1px solid rgba(139,92,246,.25)'}}>
+      <p style={{fontSize:12,fontWeight:800,color:'#8B5CF6',textTransform:'uppercase',
+        letterSpacing:'.08em',marginBottom:12}}>🤖 AI Follow-up Actions</p>
+      <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:result?16:0}}>
+        {actions.map(act=>(
+          <button key={act.id} onClick={()=>ask(act)} disabled={loading}
+            style={{padding:'7px 14px',borderRadius:20,border:'none',cursor:loading?'wait':'pointer',
+              fontSize:12,fontWeight:600,transition:'all .15s',
+              background:action===act.id&&(loading||result)?'rgba(139,92,246,.2)':'rgba(139,92,246,.08)',
+              color:action===act.id&&(loading||result)?'#8B5CF6':'var(--text-secondary)',
+              outline:'1px solid rgba(139,92,246,.2)'}}>
+            {loading&&action===act.id?'⏳ Loading…':act.label}
+          </button>
+        ))}
+      </div>
+      {result && (
+        <motion.div initial={{opacity:0,height:0}} animate={{opacity:1,height:'auto'}}
+          style={{overflow:'hidden'}}>
+          <div style={{padding:'14px 16px',borderRadius:12,background:'rgba(139,92,246,.06)',
+            border:'1px solid rgba(139,92,246,.2)',fontSize:13,color:'var(--text-secondary)',
+            lineHeight:1.75,whiteSpace:'pre-wrap',maxHeight:300,overflowY:'auto'}}>
+            {result}
+          </div>
+        </motion.div>
+      )}
+    </motion.div>
+  );
+}
+
+// ── Feature 9: Copy section markdown ──────────────────────────────────────
+function sectionToMd(s) {
+  let md = `## ${s.title || s.type}\n\n`;
+  if(s.content) md += s.content + '\n\n';
+  if(s.keyPoints) md += s.keyPoints.map(p=>`- ${p}`).join('\n') + '\n\n';
+  if(s.items) md += s.items.map(i=>`**${i.term||i.name}**: ${i.definition||i.explanation}`).join('\n') + '\n\n';
+  if(s.steps) md += s.steps.map(st=>`${st.step}. **${st.label}** — ${st.description}`).join('\n') + '\n\n';
+  if(s.tips) md += s.tips.map(t=>`> ${t.type.toUpperCase()}: ${t.text}`).join('\n') + '\n\n';
+  if(s.tricks) md += s.tricks.map(t=>`- ✨ ${t}`).join('\n') + '\n\n';
+  if(s.points) md += s.points.map(p=>`- ${p}`).join('\n') + '\n\n';
+  return md;
+}
+
 // ── Main export ────────────────────────────────────────────────────────────
 export default function NoteBook({ notes }) {
   if (!notes) return null;
   const sections = notes.sections || [];
+
+  // Feature 2: Bookmarks
+  const [bookmarks, setBookmarks] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`nb_bm_${notes.title}`) || '[]'); } catch { return []; }
+  });
+  const toggleBookmark = useCallback((i) => {
+    setBookmarks(prev => {
+      const next = prev.includes(i) ? prev.filter(x=>x!==i) : [...prev, i];
+      try { localStorage.setItem(`nb_bm_${notes.title}`, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, [notes.title]);
+
+  // Feature 3: Collapsed sections
+  const [collapsed, setCollapsed] = useState({});
+  const toggleCollapse = (i) => setCollapsed(p => ({...p, [i]: !p[i]}));
+
+  // Feature 8: Note theme
+  const [noteTheme, setNoteTheme] = useState('dark');
+
+  // Feature 6: Flashcard mode
+  const [flashMode, setFlashMode] = useState(false);
+  const flashCards = sections
+    .filter(s => s.type === 'definitions' || s.type === 'concepts')
+    .flatMap(s => (s.items || []).map(item => ({
+      q: item.term || item.name,
+      a: item.definition || item.explanation,
+    })));
+
+  // Feature 1: Reading progress
+  const [progress, setProgress] = useState(0);
+  const containerRef = useRef(null);
+  useEffect(() => {
+    const onScroll = () => {
+      const el = containerRef.current;
+      if (!el) return;
+      const { top, height } = el.getBoundingClientRect();
+      const winH = window.innerHeight;
+      const scrolled = Math.max(0, -top);
+      const total = height - winH;
+      setProgress(total > 0 ? Math.min(100, Math.round((scrolled / total) * 100)) : 100);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const isLight = noteTheme === 'light';
+  const bg = isLight ? '#FEFCE8' : 'var(--bg-primary)';
+  const cardBg = isLight ? '#FFFFFF' : 'var(--bg-secondary)';
+  const textPrimary = isLight ? '#1E293B' : 'var(--text-primary)';
+  const textSecondary = isLight ? '#475569' : 'var(--text-secondary)';
+  const borderColor = isLight ? 'rgba(0,0,0,.1)' : 'var(--border-color)';
+
   return (
-    <div style={{display:'flex',flexDirection:'column',gap:16}}>
-      <Cover notes={notes}/>
-      {sections.length > 1 && <TOC sections={sections}/>}
-      {sections.map((s,i) => <Section key={i} s={s} i={i}/>)}
+    <div ref={containerRef} style={{background:bg,borderRadius:20,padding:4,transition:'background .3s'}}>
+      <style>{`
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .nb-card{background:${cardBg};color:${textPrimary}}
+        .nb-text{color:${textSecondary}}
+        .nb-border{border-color:${borderColor}}
+        @media print {
+          .nb-noprint{display:none!important}
+          .nb-printonly{display:block!important}
+          body{background:white!important}
+        }
+      `}</style>
+
+      {/* Feature 1: Reading progress bar */}
+      <div className="nb-noprint" style={{position:'fixed',top:0,left:0,right:0,height:3,zIndex:9999,
+        background:'var(--bg-tertiary)',transition:'all .2s'}}>
+        <motion.div animate={{width:`${progress}%`}} transition={{duration:.2}}
+          style={{height:'100%',background:'linear-gradient(90deg,#8B5CF6,#06B6D4)'}}/>
+      </div>
+
+      {/* Feature 8: Theme toggle + Feature 6: Flashcard mode toolbar */}
+      <div className="nb-noprint" style={{display:'flex',alignItems:'center',gap:8,
+        padding:'10px 14px',borderRadius:'16px 16px 0 0',
+        background:cardBg,borderBottom:`1px solid ${borderColor}`,flexWrap:'wrap'}}>
+        <span style={{fontSize:13,fontWeight:700,color:textSecondary}}>
+          📖 {notes.title}
+        </span>
+        <div style={{marginLeft:'auto',display:'flex',gap:7,flexWrap:'wrap',alignItems:'center'}}>
+          {/* Progress badge */}
+          <span style={{fontSize:11,fontWeight:700,padding:'3px 10px',borderRadius:20,
+            background:'rgba(99,102,241,.12)',color:'#6366F1'}}>{progress}% read</span>
+
+          {/* Feature 6: Flashcard mode */}
+          {flashCards.length > 0 && (
+            <button onClick={()=>setFlashMode(f=>!f)}
+              style={{padding:'5px 12px',borderRadius:20,border:'none',cursor:'pointer',fontSize:12,fontWeight:700,
+                background:flashMode?'#8B5CF6':'rgba(139,92,246,.12)',
+                color:flashMode?'white':'#8B5CF6',transition:'all .2s'}}>
+              🃏 {flashMode?'Exit Flashcards':'Flashcard Mode'}
+            </button>
+          )}
+
+          {/* Feature 8: Theme */}
+          <button onClick={()=>setNoteTheme(t=>t==='dark'?'light':'dark')}
+            style={{padding:'5px 12px',borderRadius:20,border:'1px solid',cursor:'pointer',fontSize:12,fontWeight:700,
+              borderColor:isLight?'rgba(0,0,0,.15)':'var(--border-color)',
+              background:isLight?'#FEF3C7':'rgba(234,179,8,.1)',color:isLight?'#78350F':'#CA8A04'}}>
+            {isLight?'🌙 Dark':'☀️ Light'}
+          </button>
+
+          {/* Feature 4: Print */}
+          <button onClick={()=>window.print()}
+            style={{padding:'5px 12px',borderRadius:20,border:'1px solid',cursor:'pointer',fontSize:12,fontWeight:700,
+              borderColor:'rgba(16,185,129,.3)',background:'rgba(16,185,129,.1)',color:'#10B981'}}>
+            🖨️ Print
+          </button>
+        </div>
+      </div>
+
+      {/* Feature 6: Flashcard mode overlay */}
+      <AnimatePresence>
+        {flashMode && (
+          <motion.div initial={{opacity:0,y:10}} animate={{opacity:1,y:0}} exit={{opacity:0,y:10}}
+            style={{padding:24,background:cardBg,borderRadius:12,margin:'12px 4px'}}>
+            <FlashcardDeck cards={flashCards} onClose={()=>setFlashMode(false)}/>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {!flashMode && (
+        <div style={{padding:'16px 4px',display:'flex',flexDirection:'column',gap:16}}>
+          <Cover notes={notes} cardBg={cardBg} textPrimary={textPrimary}/>
+          {sections.length > 1 && <TOC sections={sections} bookmarks={bookmarks}/>}
+
+          {/* Sections */}
+          {sections.map((s, i) => (
+            <div key={i} style={{position:'relative'}}>
+              {/* Feature 2: Bookmark button */}
+              <button onClick={()=>toggleBookmark(i)}
+                className="nb-noprint"
+                style={{position:'absolute',top:14,right:14,zIndex:10,
+                  width:28,height:28,borderRadius:'50%',border:'none',cursor:'pointer',fontSize:14,
+                  background:bookmarks.includes(i)?'rgba(234,179,8,.2)':'transparent',
+                  color:bookmarks.includes(i)?'#EAB308':'var(--text-muted)',transition:'all .2s'}}>
+                {bookmarks.includes(i)?'⭐':'☆'}
+              </button>
+
+              {/* Feature 3: Collapse button */}
+              <button onClick={()=>toggleCollapse(i)}
+                className="nb-noprint"
+                style={{position:'absolute',top:14,right:46,zIndex:10,
+                  width:28,height:28,borderRadius:'50%',border:'none',cursor:'pointer',fontSize:12,
+                  background:'transparent',color:'var(--text-muted)',transition:'all .2s'}}>
+                {collapsed[i]?'▶':'▼'}
+              </button>
+
+              <AnimatePresence initial={false}>
+                {!collapsed[i] && (
+                  <motion.div key="content"
+                    initial={{height:0,opacity:0}} animate={{height:'auto',opacity:1}}
+                    exit={{height:0,opacity:0}} transition={{duration:.25}}>
+                    <Section s={s} i={i} cardBg={cardBg} textPrimary={textPrimary} textSecondary={textSecondary}/>
+                  </motion.div>
+                )}
+                {collapsed[i] && (
+                  <motion.div key="collapsed"
+                    style={{padding:'12px 20px',borderRadius:16,background:cardBg,
+                      border:'1px solid',borderColor,cursor:'pointer',display:'flex',alignItems:'center',gap:10}}
+                    onClick={()=>toggleCollapse(i)}>
+                    <span style={{fontSize:16}}>{THEME[s.type]?.e||'📄'}</span>
+                    <span style={{fontSize:13,fontWeight:600,color:textPrimary}}>{s.title||s.type}</span>
+                    <span style={{marginLeft:'auto',fontSize:11,color:'var(--text-muted)'}}>Click to expand</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          ))}
+
+          {/* Feature 5: AI Follow-up per topic */}
+          <AIFollowUp topic={notes.title} subject={notes.subject} cardBg={cardBg}/>
+
+          {/* Feature 10: Related Topics */}
+          {notes.relatedTopics?.length > 0 && (
+            <motion.div initial={{opacity:0,y:10}} animate={{opacity:1,y:0}} transition={{delay:.3}}
+              style={{padding:'20px 22px',borderRadius:16,background:cardBg,
+                border:'1px dashed rgba(99,102,241,.35)'}}>
+              <p style={{fontSize:12,fontWeight:800,color:'#6366F1',textTransform:'uppercase',
+                letterSpacing:'.08em',marginBottom:12}}>🔗 Related Topics to Study Next</p>
+              <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+                {notes.relatedTopics.map((t,i)=>(
+                  <Link key={i}
+                    href={`/dashboard/creative-notes?topic=${encodeURIComponent(t)}&subject=${encodeURIComponent(notes.subject||'')}`}
+                    style={{padding:'7px 16px',borderRadius:20,fontSize:13,fontWeight:600,
+                      textDecoration:'none',background:'rgba(99,102,241,.08)',
+                      border:'1px solid rgba(99,102,241,.25)',color:'#6366F1',transition:'all .15s'}}
+                    onMouseEnter={e=>{e.currentTarget.style.background='rgba(99,102,241,.18)';}}
+                    onMouseLeave={e=>{e.currentTarget.style.background='rgba(99,102,241,.08)';}}>
+                    📖 {t}
+                  </Link>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Feature 2: Bookmarks panel */}
+          {bookmarks.length > 0 && (
+            <motion.div initial={{opacity:0}} animate={{opacity:1}}
+              style={{padding:'18px 22px',borderRadius:16,background:'rgba(234,179,8,.08)',
+                border:'1px solid rgba(234,179,8,.3)'}}>
+              <p style={{fontSize:12,fontWeight:800,color:'#CA8A04',textTransform:'uppercase',
+                letterSpacing:'.08em',marginBottom:10}}>⭐ Your Bookmarks ({bookmarks.length})</p>
+              <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                {bookmarks.map(i => (
+                  <a key={i} href={`#nb-${i}`}
+                    style={{padding:'5px 12px',borderRadius:20,fontSize:12,fontWeight:600,
+                      textDecoration:'none',background:'rgba(234,179,8,.15)',
+                      border:'1px solid rgba(234,179,8,.3)',color:'#CA8A04'}}>
+                    {sections[i]?.title || `Section ${i+1}`}
+                  </a>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

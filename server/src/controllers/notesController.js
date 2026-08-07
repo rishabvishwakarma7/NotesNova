@@ -158,96 +158,134 @@ export const generateCreativeNotes = async (req, res) => {
     const subjectCtx = subject ? ` (Subject: ${subject})` : '';
     const levelCtx = level || 'intermediate';
 
-    const systemPrompt = `You are NoteNova AI, an expert educational content creator. Generate comprehensive, structured study notes as a JSON object. Always return valid JSON only — no markdown, no code fences.`;
+    const systemPrompt = `You are NoteNova AI, an expert educational content creator and professor. Generate comprehensive, university-level study notes as JSON. Always return valid JSON only — no markdown, no code fences. Be extremely detailed and educational.`;
 
-    const userPrompt = `Create creative study notes for: "${topic}"${subjectCtx}
+    const userPrompt = `Create comprehensive visual study notes for: "${topic}"${subjectCtx}
 Level: ${levelCtx}
 
-Return a JSON object with this EXACT structure:
+Return a JSON object with this EXACT structure (be thorough, detailed, and educational — not surface-level):
 {
-  "title": "Topic Title",
-  "subject": "Subject Name",
-  "level": "beginner|intermediate|advanced",
+  "title": "Complete Topic Title",
+  "subject": "${subject || 'General'}",
+  "level": "${level}",
   "emoji": "relevant emoji",
-  "color": "blue|green|orange|purple|teal",
+  "color": "blue",
+  "relatedTopics": ["Related Topic 1", "Related Topic 2", "Related Topic 3", "Related Topic 4", "Related Topic 5"],
   "sections": [
     {
       "type": "overview",
       "title": "What is ${topic}?",
-      "content": "Clear 2-3 sentence explanation",
-      "keyPoints": ["point 1", "point 2", "point 3"]
+      "content": "Detailed 3-4 sentence explanation covering what it is, why it matters, and real-world significance.",
+      "keyPoints": ["Key insight 1 with explanation", "Key insight 2 with explanation", "Key insight 3 with explanation", "Key insight 4 with explanation", "Key insight 5 with explanation"]
     },
     {
       "type": "definitions",
-      "title": "Key Definitions",
+      "title": "Essential Terminology",
       "items": [
-        { "term": "Term Name", "definition": "Clear definition" }
+        { "term": "Technical Term", "definition": "Clear, precise definition with context and usage" },
+        { "term": "Term 2", "definition": "Definition 2" },
+        { "term": "Term 3", "definition": "Definition 3" },
+        { "term": "Term 4", "definition": "Definition 4" },
+        { "term": "Term 5", "definition": "Definition 5" },
+        { "term": "Term 6", "definition": "Definition 6" }
       ]
     },
     {
       "type": "concepts",
-      "title": "Core Concepts",
+      "title": "Core Concepts Explained",
       "items": [
-        { "name": "Concept", "explanation": "Explanation", "example": "Example" }
+        { "name": "Concept Name", "explanation": "Detailed 2-3 sentence explanation with mechanism and purpose", "example": "Concrete real-world example showing application" },
+        { "name": "Concept 2", "explanation": "Explanation 2", "example": "Example 2" },
+        { "name": "Concept 3", "explanation": "Explanation 3", "example": "Example 3" },
+        { "name": "Concept 4", "explanation": "Explanation 4", "example": "Example 4" }
       ]
     },
     {
       "type": "flowchart",
-      "title": "Process / Flow",
+      "title": "Step-by-Step Process",
       "steps": [
-        { "step": 1, "label": "Step Name", "description": "What happens" }
+        { "step": 1, "label": "Step Name", "description": "What happens in this step and why" },
+        { "step": 2, "label": "Step 2", "description": "Description 2" },
+        { "step": 3, "label": "Step 3", "description": "Description 3" },
+        { "step": 4, "label": "Step 4", "description": "Description 4" },
+        { "step": 5, "label": "Step 5", "description": "Description 5" }
       ]
     },
     {
       "type": "comparison",
       "title": "Key Comparisons",
-      "headers": ["Aspect", "Option A", "Option B"],
-      "rows": [["row item", "value A", "value B"]]
+      "headers": ["Aspect", "Approach A", "Approach B"],
+      "rows": [["Feature 1","Value A","Value B"],["Feature 2","Value A","Value B"],["Feature 3","Value A","Value B"],["Feature 4","Value A","Value B"],["Feature 5","Value A","Value B"]]
     },
     {
       "type": "examples",
-      "title": "Real-World Examples",
+      "title": "Practical Examples with Code",
       "items": [
-        { "title": "Example Title", "description": "Example explanation", "code": "optional code snippet or empty string" }
+        { "title": "Basic Example", "description": "What this example demonstrates and why it is important", "code": "# Actual working code here\\nprint('example')" },
+        { "title": "Intermediate Example", "description": "More complex scenario", "code": "# More complex code" },
+        { "title": "Real-World Application", "description": "Industry use case", "code": "" }
       ]
     },
     {
       "type": "tips",
-      "title": "Important Tips & Common Mistakes",
-      "tips": [{ "type": "tip|warning|important", "text": "Tip text" }]
+      "title": "Expert Tips, Common Mistakes & Warnings",
+      "tips": [
+        { "type": "tip", "text": "Pro tip with actionable advice a student can immediately apply" },
+        { "type": "warning", "text": "Common mistake students make and exactly how to avoid it" },
+        { "type": "important", "text": "Critical concept that is frequently tested in exams" },
+        { "type": "tip", "text": "Efficiency tip or optimization advice" },
+        { "type": "warning", "text": "Another common pitfall with explanation" }
+      ]
     },
     {
       "type": "memory",
-      "title": "Memory Tricks",
-      "tricks": ["Mnemonic or analogy 1", "Mnemonic or analogy 2"]
+      "title": "Memory Tricks & Mnemonics",
+      "tricks": [
+        "Clever acronym or mnemonic to remember key steps: e.g., SOLID stands for...",
+        "Visual analogy: Think of X like a Y because...",
+        "Rhyme or pattern to remember: ...",
+        "Story technique: Imagine you are a...",
+        "Comparison to everyday life: Just like when you..."
+      ]
     },
     {
       "type": "quiz",
-      "title": "Quick Quiz",
+      "title": "Test Your Understanding",
       "questions": [
-        {
-          "q": "Question?",
-          "options": ["A) option", "B) option", "C) option", "D) option"],
-          "answer": "A",
-          "explanation": "Why this answer"
-        }
+        { "q": "Conceptual question about fundamentals?", "options": ["A) Correct answer with explanation", "B) Common wrong answer", "C) Another distractor", "D) Fourth option"], "answer": "A", "explanation": "Detailed explanation of why A is correct and why others are wrong" },
+        { "q": "Application-based question?", "options": ["A) Option", "B) Correct answer", "C) Option", "D) Option"], "answer": "B", "explanation": "Explanation 2" },
+        { "q": "Analysis question?", "options": ["A) Option", "B) Option", "C) Correct answer", "D) Option"], "answer": "C", "explanation": "Explanation 3" },
+        { "q": "Tricky exam-style question?", "options": ["A) Option", "B) Option", "C) Option", "D) Correct answer"], "answer": "D", "explanation": "Explanation 4" },
+        { "q": "Practical implementation question?", "options": ["A) Correct answer", "B) Option", "C) Option", "D) Option"], "answer": "A", "explanation": "Explanation 5" }
       ]
     },
     {
       "type": "summary",
-      "title": "Key Takeaways",
-      "points": ["Takeaway 1", "Takeaway 2", "Takeaway 3"],
-      "examTips": ["Exam tip 1", "Exam tip 2"]
+      "title": "Key Takeaways & Exam Preparation",
+      "points": [
+        "Most important concept stated clearly and memorably",
+        "Second key takeaway with practical significance",
+        "Third takeaway connecting to broader context",
+        "Fourth takeaway focusing on common exam angles",
+        "Fifth takeaway — what makes this topic unique"
+      ],
+      "examTips": [
+        "Specific exam tip: questions often ask about X, so remember Y",
+        "Common exam trap: students confuse A with B — the difference is...",
+        "High-value topic: always appears in exams as...",
+        "Time-saving trick during exams: when you see X in a question, immediately think Y"
+      ]
     }
   ]
 }
 
-Rules:
-- Include ALL section types listed above
-- Generate realistic, educational content (not placeholder text)
-- For code examples, include actual code relevant to the topic
-- Make definitions clear and concise
-- Quiz should have 4 questions minimum
+Critical rules:
+- Every definition must be precise and complete — not vague
+- Every example must be concrete and real, not generic
+- Code examples must be actual working code relevant to ${topic}
+- Quiz questions must test real understanding, not just memorization  
+- Memory tricks must be genuinely helpful and creative
+- Do not use placeholder text like "Description 1" — write real content
 - Return ONLY the JSON object, nothing else`;
 
     const raw = await generateTextWithProvider(systemPrompt, userPrompt, provider);
