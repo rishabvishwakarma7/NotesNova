@@ -1,554 +1,488 @@
 'use client';
+
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Copy, Check, ChevronDown, ChevronUp, Star, ArrowRight, CheckCircle2, AlertCircle, X } from 'lucide-react';
 
-// PDF-inspired color palette — semantic, never random
-const C = {
-  blue:   { bg:'rgba(59,130,246,0.08)',   border:'rgba(59,130,246,0.25)',  accent:'#3B82F6', light:'#EFF6FF' },
-  green:  { bg:'rgba(16,185,129,0.08)',   border:'rgba(16,185,129,0.25)',  accent:'#10B981', light:'#F0FDF4' },
-  orange: { bg:'rgba(249,115,22,0.08)',   border:'rgba(249,115,22,0.25)',  accent:'#F97316', light:'#FFF7ED' },
-  purple: { bg:'rgba(139,92,246,0.08)',   border:'rgba(139,92,246,0.25)',  accent:'#8B5CF6', light:'#FAF5FF' },
-  yellow: { bg:'rgba(234,179,8,0.1)',     border:'rgba(234,179,8,0.3)',    accent:'#EAB308', light:'#FEFCE8' },
-  red:    { bg:'rgba(239,68,68,0.08)',    border:'rgba(239,68,68,0.25)',   accent:'#EF4444', light:'#FFF1F2' },
-  pink:   { bg:'rgba(236,72,153,0.08)',   border:'rgba(236,72,153,0.25)', accent:'#EC4899', light:'#FDF2F8' },
-  teal:   { bg:'rgba(20,184,166,0.08)',   border:'rgba(20,184,166,0.25)',  accent:'#14B8A6', light:'#F0FDFA' },
+// ── Semantic color system (PDF-inspired) ──────────────────────────────────
+// Blue=Concepts, Green=Definitions, Orange=Examples, Purple=Interview,
+// Yellow=Important, Red=Warnings, Pink=Memory, Teal=Summary
+const COLORS = {
+  blue:   { bg:'rgba(59,130,246,0.1)',  border:'rgba(59,130,246,0.3)',  text:'#3B82F6',  head:'#1D4ED8' },
+  green:  { bg:'rgba(16,185,129,0.1)', border:'rgba(16,185,129,0.3)',  text:'#10B981',  head:'#065F46' },
+  orange: { bg:'rgba(249,115,22,0.1)', border:'rgba(249,115,22,0.3)',  text:'#F97316',  head:'#C2410C' },
+  purple: { bg:'rgba(139,92,246,0.1)', border:'rgba(139,92,246,0.3)',  text:'#8B5CF6',  head:'#5B21B6' },
+  yellow: { bg:'rgba(234,179,8,0.12)', border:'rgba(234,179,8,0.35)',  text:'#CA8A04',  head:'#78350F' },
+  red:    { bg:'rgba(239,68,68,0.1)',   border:'rgba(239,68,68,0.3)',   text:'#EF4444',  head:'#B91C1C' },
+  pink:   { bg:'rgba(236,72,153,0.1)', border:'rgba(236,72,153,0.3)', text:'#EC4899',  head:'#9D174D' },
+  teal:   { bg:'rgba(20,184,166,0.1)', border:'rgba(20,184,166,0.3)',  text:'#14B8A6',  head:'#115E59' },
 };
 
-const SEC = {
-  overview:    { ...C.blue,   emoji:'📋', title_color:'#3B82F6' },
-  definitions: { ...C.green,  emoji:'📖', title_color:'#10B981' },
-  concepts:    { ...C.purple, emoji:'💡', title_color:'#8B5CF6' },
-  flowchart:   { ...C.teal,   emoji:'🔄', title_color:'#14B8A6' },
-  comparison:  { ...C.purple, emoji:'⚖️', title_color:'#8B5CF6' },
-  examples:    { ...C.orange, emoji:'🧪', title_color:'#F97316' },
-  tips:        { ...C.yellow, emoji:'⚠️', title_color:'#EAB308' },
-  memory:      { ...C.pink,   emoji:'🧠', title_color:'#EC4899' },
-  quiz:        { ...C.blue,   emoji:'❓', title_color:'#3B82F6' },
-  summary:     { ...C.teal,   emoji:'✅', title_color:'#14B8A6' },
+// Section type → color + emoji (matches PDF design language)
+const SECTION_THEME = {
+  overview:    { color: COLORS.blue,   emoji: '📋', label: 'Overview' },
+  definitions: { color: COLORS.green,  emoji: '📗', label: 'Key Definitions' },
+  concepts:    { color: COLORS.blue,   emoji: '💡', label: 'Core Concepts' },
+  flowchart:   { color: COLORS.teal,   emoji: '🔄', label: 'Flow / Process' },
+  comparison:  { color: COLORS.purple, emoji: '⚖️', label: 'Comparison' },
+  examples:    { color: COLORS.orange, emoji: '🧪', label: 'Examples' },
+  tips:        { color: COLORS.yellow, emoji: '⚠️', label: 'Tips & Warnings' },
+  memory:      { color: COLORS.pink,   emoji: '🧠', label: 'Memory Tricks' },
+  quiz:        { color: COLORS.purple, emoji: '❓', label: 'Quick Quiz' },
+  summary:     { color: COLORS.teal,   emoji: '✅', label: 'Key Takeaways' },
 };
 
-// ── Notebook Header (PDF-inspired spiral/notebook look) ──────────────────
-function NoteHeader({ notes }) {
-  const colors = { blue:'#3B82F6', green:'#10B981', orange:'#F97316', purple:'#8B5CF6', teal:'#14B8A6' };
-  const accent = colors[notes.color] || '#8B5CF6';
+// ── Shared notebook section header (PDF-style bordered heading) ────────────
+function SectionHeader({ emoji, title, color }) {
   return (
-    <div style={{ marginBottom:20, borderRadius:20, overflow:'hidden',
-      border:`2px solid ${accent}40`, boxShadow:`0 8px 32px ${accent}15` }}>
-      {/* Spiral holes strip */}
-      <div style={{ height:28, background:`${accent}15`,
-        display:'flex', alignItems:'center', paddingLeft:16, gap:14, borderBottom:`1px solid ${accent}20` }}>
-        {[...Array(12)].map((_,i) => (
-          <div key={i} style={{ width:14, height:14, borderRadius:'50%',
-            background:`${accent}30`, border:`2px solid ${accent}50` }} />
-        ))}
+    <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:18 }}>
+      <div style={{ width:40, height:40, borderRadius:12, background:color.bg,
+        border:`2px solid ${color.border}`, display:'flex', alignItems:'center',
+        justifyContent:'center', fontSize:20, flexShrink:0 }}>
+        {emoji}
       </div>
-      {/* Title area */}
-      <div style={{ padding:'24px 28px', background:'var(--bg-card)',
-        display:'flex', alignItems:'center', gap:20, flexWrap:'wrap' }}>
-        <div style={{ fontSize:56, lineHeight:1 }}>{notes.emoji || '📚'}</div>
-        <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ display:'flex', gap:8, marginBottom:8, flexWrap:'wrap' }}>
-            {notes.subject && (
-              <span style={{ fontSize:11, fontWeight:800, color:accent,
-                background:`${accent}12`, padding:'3px 12px', borderRadius:20,
-                textTransform:'uppercase', letterSpacing:'0.08em', border:`1px solid ${accent}30` }}>
-                {notes.subject}
-              </span>
-            )}
-            {notes.level && (
-              <span style={{ fontSize:11, fontWeight:700, color:'white',
-                background: accent, padding:'3px 12px', borderRadius:20 }}>
-                {notes.level.charAt(0).toUpperCase() + notes.level.slice(1)}
-              </span>
-            )}
-          </div>
-          <h1 style={{ fontSize:'clamp(20px,4vw,30px)', fontWeight:900,
-            color:'var(--text-primary)', lineHeight:1.2, marginBottom:6 }}>
-            {notes.title}
-          </h1>
-          <p style={{ fontSize:13, color:'var(--text-muted)' }}>
-            {notes.sections?.length || 0} sections · Visual study guide · NoteNova AI
-          </p>
-        </div>
+      <div style={{ flex:1, borderBottom:`2px solid ${color.border}`, paddingBottom:6 }}>
+        <h2 style={{ fontSize:18, fontWeight:800, color:color.text, margin:0,
+          fontFamily:'inherit', letterSpacing:'-0.01em' }}>
+          {title}
+        </h2>
       </div>
     </div>
   );
 }
 
-// ── Table of Contents (PDF-style pill links) ──────────────────────────────
-function TOC({ sections }) {
-  const types = sections.map(s => s.type);
+// ── Notebook card wrapper ──────────────────────────────────────────────────
+function NoteCard({ color, children, style = {} }) {
   return (
-    <div style={{ padding:'16px 20px', borderRadius:16, marginBottom:20,
-      background:'var(--bg-card)', border:'1px solid var(--border-color)' }}>
-      <p style={{ fontSize:11, fontWeight:800, color:'var(--text-muted)',
-        textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>📑 Contents</p>
+    <div style={{ padding:'22px 24px', borderRadius:16,
+      background:color.bg, border:`1px solid ${color.border}`,
+      marginBottom:0, ...style }}>
+      {children}
+    </div>
+  );
+}
+
+// ── Cover ─────────────────────────────────────────────────────────────────
+function CoverSection({ notes }) {
+  const lvlColors = { beginner:'#10B981', intermediate:'#6366F1', advanced:'#F43F5E' };
+  const color = lvlColors[notes.level] || '#8B5CF6';
+  return (
+    <motion.div initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }}
+      style={{ padding:'32px 28px', borderRadius:20, marginBottom:20,
+        background:`linear-gradient(135deg, ${color}14, ${color}06)`,
+        border:`2px solid ${color}30`, position:'relative', overflow:'hidden' }}>
+      {/* Decorative ring */}
+      <div style={{ position:'absolute', top:-40, right:-40, width:160, height:160,
+        borderRadius:'50%', border:`3px solid ${color}15`, pointerEvents:'none' }} />
+      <div style={{ position:'absolute', top:-20, right:-20, width:100, height:100,
+        borderRadius:'50%', border:`2px solid ${color}20`, pointerEvents:'none' }} />
+      {/* Spiral binding dots (PDF aesthetic) */}
+      <div style={{ position:'absolute', left:0, top:0, bottom:0, width:32,
+        display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'space-around',
+        paddingTop:16, paddingBottom:16 }}>
+        {[...Array(8)].map((_, i) => (
+          <div key={i} style={{ width:14, height:14, borderRadius:'50%',
+            background:'var(--bg-tertiary)', border:`2px solid var(--border-color)` }} />
+        ))}
+      </div>
+      <div style={{ paddingLeft:40 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:14, flexWrap:'wrap' }}>
+          <span style={{ fontSize:40 }}>{notes.emoji || '📝'}</span>
+          <div>
+            {notes.subject && (
+              <span style={{ fontSize:11, fontWeight:800, color, background:`${color}18`,
+                padding:'3px 12px', borderRadius:20, textTransform:'uppercase',
+                letterSpacing:'0.08em', display:'inline-block', marginBottom:6 }}>
+                {notes.subject}
+              </span>
+            )}
+            <h1 style={{ fontSize:28, fontWeight:900, color:'var(--text-primary)',
+              lineHeight:1.15, margin:0 }}>{notes.title}</h1>
+          </div>
+        </div>
+        <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
+          {notes.level && (
+            <span style={{ fontSize:12, fontWeight:700, color:'white', background:color,
+              padding:'4px 14px', borderRadius:20 }}>
+              {notes.level.charAt(0).toUpperCase() + notes.level.slice(1)}
+            </span>
+          )}
+          <span style={{ fontSize:12, color:'var(--text-muted)',
+            padding:'4px 14px', borderRadius:20, background:'var(--bg-tertiary)',
+            border:'1px solid var(--border-color)' }}>
+            {notes.sections?.length || 0} sections
+          </span>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Table of Contents ──────────────────────────────────────────────────────
+function TOC({ sections }) {
+  const items = sections.filter(s => SECTION_THEME[s.type]);
+  if (!items.length) return null;
+  return (
+    <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.1 }}
+      style={{ padding:'18px 22px', borderRadius:16, marginBottom:20,
+        background:'var(--bg-secondary)', border:'1px solid var(--border-color)' }}>
+      <p style={{ fontSize:11, fontWeight:800, color:'var(--text-muted)', textTransform:'uppercase',
+        letterSpacing:'0.1em', marginBottom:12 }}>📑 Contents</p>
       <div style={{ display:'flex', flexWrap:'wrap', gap:7 }}>
-        {sections.map((s, i) => {
-          const cfg = SEC[s.type] || SEC.overview;
+        {items.map((s, i) => {
+          const th = SECTION_THEME[s.type];
           return (
-            <a key={i} href={`#cn-${i}`} style={{ display:'inline-flex', alignItems:'center',
-              gap:5, padding:'5px 13px', borderRadius:20, fontSize:12, fontWeight:600,
-              textDecoration:'none', background:cfg.bg, border:`1px solid ${cfg.border}`,
-              color:cfg.accent, transition:'all 0.15s', whiteSpace:'nowrap' }}
-              onMouseEnter={e => e.currentTarget.style.opacity='0.8'}
+            <a key={i} href={`#cn-${i}`}
+              style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'5px 12px',
+                borderRadius:20, fontSize:12, fontWeight:600, textDecoration:'none',
+                background:th.color.bg, border:`1px solid ${th.color.border}`,
+                color:th.color.text, transition:'opacity 0.15s' }}
+              onMouseEnter={e => e.currentTarget.style.opacity='0.75'}
               onMouseLeave={e => e.currentTarget.style.opacity='1'}>
-              <span>{cfg.emoji}</span> {s.title}
+              <span style={{ fontSize:13 }}>{th.emoji}</span> {s.title || th.label}
             </a>
           );
         })}
       </div>
-    </div>
+    </motion.div>
   );
 }
 
-// ── Section Header (PDF-style colored banner) ─────────────────────────────
-function SectionBanner({ type, title, idx }) {
-  const cfg = SEC[type] || SEC.overview;
-  return (
-    <div id={`cn-${idx}`} style={{ display:'flex', alignItems:'center', gap:12, marginBottom:16 }}>
-      <div style={{ width:44, height:44, borderRadius:13, background:cfg.bg,
-        border:`2px solid ${cfg.border}`, display:'flex', alignItems:'center',
-        justifyContent:'center', fontSize:22, flexShrink:0 }}>
-        {cfg.emoji}
-      </div>
-      <div style={{ flex:1, padding:'10px 18px', borderRadius:12,
-        background:cfg.bg, border:`2px solid ${cfg.border}` }}>
-        <h2 style={{ fontSize:16, fontWeight:800, color:cfg.accent, margin:0 }}>{title}</h2>
-      </div>
-    </div>
-  );
-}
-
-// ── Code Block (dark terminal style, PDF-inspired box) ────────────────────
+// ── Code block ────────────────────────────────────────────────────────────
 function CodeBlock({ code, lang = '' }) {
   const [copied, setCopied] = useState(false);
   if (!code?.trim()) return null;
   return (
-    <div style={{ borderRadius:12, overflow:'hidden', marginTop:10, border:'2px solid rgba(99,102,241,0.3)' }}>
+    <div style={{ position:'relative', marginTop:10, borderRadius:12, overflow:'hidden',
+      border:'1px solid rgba(255,255,255,0.08)' }}>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
-        padding:'8px 14px', background:'#1a1a2e', borderBottom:'1px solid rgba(255,255,255,0.1)' }}>
+        padding:'8px 14px', background:'#161B22', borderBottom:'1px solid rgba(255,255,255,0.07)' }}>
         <div style={{ display:'flex', gap:6 }}>
-          {['#FF6B6B','#FFD93D','#6BCB77'].map((c,i) => (
-            <div key={i} style={{ width:11, height:11, borderRadius:'50%', background:c }} />
+          {['#FF5F57','#FFBD2E','#28C840'].map(c => (
+            <div key={c} style={{ width:11, height:11, borderRadius:'50%', background:c }} />
           ))}
         </div>
-        {lang && <span style={{ fontSize:10, color:'#888', fontFamily:'monospace' }}>{lang}</span>}
+        {lang && <span style={{ fontSize:10, color:'#8B949E', fontWeight:600, textTransform:'uppercase' }}>{lang}</span>}
         <button onClick={() => { navigator.clipboard.writeText(code); setCopied(true); setTimeout(()=>setCopied(false),2000); }}
-          style={{ display:'flex', alignItems:'center', gap:4, padding:'3px 10px', borderRadius:6,
-            background:'rgba(255,255,255,0.08)', border:'none', cursor:'pointer',
-            color: copied ? '#6BCB77' : '#9CA3AF', fontSize:11, fontWeight:600 }}>
-          {copied ? <Check size={11}/> : <Copy size={11}/>} {copied ? 'Copied' : 'Copy'}
+          style={{ background:'none', border:'none', cursor:'pointer', fontSize:11,
+            color: copied ? '#10B981' : '#8B949E', fontWeight:600, padding:'2px 8px',
+            borderRadius:6, transition:'color 0.15s' }}>
+          {copied ? '✓ Copied' : 'Copy'}
         </button>
       </div>
-      <pre style={{ padding:'16px', background:'#0D1117', color:'#E6EDF3',
-        fontSize:13, lineHeight:1.7, overflowX:'auto', margin:0,
-        fontFamily:"'JetBrains Mono','Fira Code',Consolas,monospace" }}>
+      <pre style={{ margin:0, padding:'14px 16px', background:'#0D1117',
+        color:'#E6EDF3', fontSize:13, lineHeight:1.7, overflowX:'auto',
+        fontFamily:"'JetBrains Mono','Fira Code',monospace" }}>
         <code>{code.trim()}</code>
       </pre>
     </div>
   );
 }
 
-// ── Overview Section ───────────────────────────────────────────────────────
-function OverviewSection({ section, idx }) {
-  const cfg = SEC.overview;
+// ── All section renderers ─────────────────────────────────────────────────
+function OverviewSection({ s, idx }) {
+  const th = SECTION_THEME.overview;
   return (
-    <motion.div id={`cn-${idx}`} initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:idx*0.05}}>
-      <SectionBanner type="overview" title={section.title} idx={idx} />
-      <div style={{ padding:'18px 22px', borderRadius:14,
-        background:cfg.bg, border:`1.5px solid ${cfg.border}`, marginBottom:4 }}>
-        {section.content && (
-          <p style={{ fontSize:14, color:'var(--text-secondary)', lineHeight:1.75,
-            marginBottom: section.keyPoints?.length ? 14 : 0 }}>{section.content}</p>
-        )}
-        {section.keyPoints?.length > 0 && (
-          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            {section.keyPoints.map((pt, i) => (
-              <div key={i} style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
-                <span style={{ fontSize:16, flexShrink:0, marginTop:1 }}>⭐</span>
-                <span style={{ fontSize:13, color:'var(--text-primary)', lineHeight:1.6, fontWeight:500 }}>{pt}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </motion.div>
-  );
-}
-
-// ── Definitions Section (PDF green cards) ─────────────────────────────────
-function DefinitionsSection({ section, idx }) {
-  const cfg = SEC.definitions;
-  return (
-    <motion.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:idx*0.05}}>
-      <SectionBanner type="definitions" title={section.title} idx={idx} />
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(250px,1fr))', gap:12 }}>
-        {(section.items||[]).map((item, i) => (
-          <div key={i} style={{ padding:'16px 18px', borderRadius:14,
-            background:cfg.bg, border:`1.5px solid ${cfg.border}`,
-            position:'relative', overflow:'hidden' }}>
-            <div style={{ position:'absolute', top:0, left:0, width:4, height:'100%', background:cfg.accent }} />
-            <p style={{ fontSize:13, fontWeight:800, color:cfg.accent, marginBottom:6, paddingLeft:8 }}>
-              {item.term}
-            </p>
-            <p style={{ fontSize:12, color:'var(--text-secondary)', lineHeight:1.6, paddingLeft:8 }}>
-              {item.definition}
-            </p>
-          </div>
-        ))}
-      </div>
-    </motion.div>
-  );
-}
-
-// ── Concepts Section (numbered purple cards) ──────────────────────────────
-function ConceptsSection({ section, idx }) {
-  const cfg = SEC.concepts;
-  return (
-    <motion.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:idx*0.05}}>
-      <SectionBanner type="concepts" title={section.title} idx={idx} />
-      <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-        {(section.items||[]).map((item, i) => (
-          <div key={i} style={{ padding:'18px 20px', borderRadius:14,
-            background:'var(--bg-card)', border:`1.5px solid ${cfg.border}`,
-            display:'flex', gap:14 }}>
-            <div style={{ width:32, height:32, borderRadius:10, background:cfg.bg,
-              border:`2px solid ${cfg.border}`, display:'flex', alignItems:'center',
-              justifyContent:'center', fontSize:14, fontWeight:900, color:cfg.accent, flexShrink:0 }}>
-              {i+1}
-            </div>
-            <div style={{ flex:1 }}>
-              <p style={{ fontSize:14, fontWeight:800, color:cfg.accent, marginBottom:6 }}>{item.name}</p>
-              <p style={{ fontSize:13, color:'var(--text-secondary)', lineHeight:1.6,
-                marginBottom: item.example ? 8 : 0 }}>{item.explanation}</p>
-              {item.example && (
-                <div style={{ padding:'8px 12px', borderRadius:9,
-                  background:'rgba(249,115,22,0.07)', border:'1px solid rgba(249,115,22,0.2)',
-                  fontSize:12, color:'#F97316', fontStyle:'italic' }}>
-                  🧪 Example: {item.example}
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </motion.div>
-  );
-}
-
-// ── Flowchart Section (PDF process diagram style) ─────────────────────────
-function FlowchartSection({ section, idx }) {
-  const cfg = SEC.flowchart;
-  return (
-    <motion.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:idx*0.05}}>
-      <SectionBanner type="flowchart" title={section.title} idx={idx} />
-      <div style={{ padding:'20px', borderRadius:14, background:cfg.bg, border:`1.5px solid ${cfg.border}` }}>
-        {(section.steps||[]).map((step, i) => (
-          <div key={i} style={{ display:'flex', alignItems:'stretch', gap:0 }}>
-            <div style={{ display:'flex', flexDirection:'column', alignItems:'center', width:52, flexShrink:0 }}>
-              <div style={{ width:38, height:38, borderRadius:'50%', background:cfg.accent,
-                display:'flex', alignItems:'center', justifyContent:'center',
-                fontSize:15, fontWeight:900, color:'white', flexShrink:0, zIndex:1 }}>
-                {step.step || i+1}
-              </div>
-              {i < (section.steps.length-1) && (
-                <div style={{ width:2, flex:1, minHeight:20, background:`${cfg.accent}30`, margin:'2px 0' }} />
-              )}
-            </div>
-            <div style={{ paddingLeft:14, paddingBottom: i < section.steps.length-1 ? 20 : 0, flex:1 }}>
-              <p style={{ fontSize:14, fontWeight:700, color:'var(--text-primary)', marginBottom:3 }}>
-                {step.label}
-              </p>
-              {step.description && (
-                <p style={{ fontSize:12, color:'var(--text-secondary)', lineHeight:1.55 }}>
-                  {step.description}
-                </p>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </motion.div>
-  );
-}
-
-// ── Comparison Table (PDF table style) ────────────────────────────────────
-function ComparisonSection({ section, idx }) {
-  const cfg = SEC.comparison;
-  return (
-    <motion.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:idx*0.05}}>
-      <SectionBanner type="comparison" title={section.title} idx={idx} />
-      <div style={{ borderRadius:14, overflow:'hidden', border:`1.5px solid ${cfg.border}` }}>
-        <div style={{ overflowX:'auto' }}>
-          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
-            {section.headers?.length > 0 && (
-              <thead>
-                <tr>
-                  {section.headers.map((h, i) => (
-                    <th key={i} style={{ padding:'12px 16px', textAlign:'left', fontWeight:800,
-                      color:cfg.accent, background:cfg.bg,
-                      borderBottom:`2px solid ${cfg.border}`,
-                      borderRight: i < section.headers.length-1 ? `1px solid ${cfg.border}` : 'none' }}>
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-            )}
-            <tbody>
-              {(section.rows||[]).map((row, ri) => (
-                <tr key={ri} style={{ background: ri%2===0 ? 'var(--bg-card)' : cfg.bg }}>
-                  {(Array.isArray(row)?row:[row]).map((cell, ci) => (
-                    <td key={ci} style={{ padding:'11px 16px',
-                      color: ci===0 ? 'var(--text-primary)' : 'var(--text-secondary)',
-                      fontWeight: ci===0 ? 600 : 400,
-                      borderBottom:`1px solid ${cfg.border}`,
-                      borderRight: ci < (Array.isArray(row)?row.length:1)-1 ? `1px solid ${cfg.border}` : 'none' }}>
-                      {cell}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+    <NoteCard color={th.color} id={`cn-${idx}`}>
+      <SectionHeader emoji={th.emoji} title={s.title || 'Overview'} color={th.color} />
+      {s.content && <p style={{ fontSize:14, color:'var(--text-secondary)', lineHeight:1.8, marginBottom:s.keyPoints?.length?14:0 }}>{s.content}</p>}
+      {s.keyPoints?.map((p,i)=>(
+        <div key={i} style={{ display:'flex', gap:10, padding:'8px 12px', borderRadius:10,
+          background:'rgba(59,130,246,0.06)', border:'1px solid rgba(59,130,246,0.15)', marginBottom:8 }}>
+          <span style={{ color:'#3B82F6', fontWeight:800, flexShrink:0 }}>★</span>
+          <span style={{ fontSize:13, color:'var(--text-primary)', lineHeight:1.6 }}>{p}</span>
         </div>
-      </div>
-    </motion.div>
+      ))}
+    </NoteCard>
   );
 }
 
-// ── Examples Section (PDF orange example boxes) ───────────────────────────
-function ExamplesSection({ section, idx }) {
-  const cfg = SEC.examples;
+function DefinitionsSection({ s, idx }) {
+  const th = SECTION_THEME.definitions;
   return (
-    <motion.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:idx*0.05}}>
-      <SectionBanner type="examples" title={section.title} idx={idx} />
-      <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-        {(section.items||[]).map((item, i) => (
-          <div key={i} style={{ borderRadius:14, overflow:'hidden',
-            border:`1.5px solid ${cfg.border}` }}>
-            <div style={{ padding:'12px 16px', background:cfg.bg,
-              borderBottom: (item.description || item.code) ? `1px solid ${cfg.border}` : 'none',
-              display:'flex', alignItems:'center', gap:10 }}>
-              <div style={{ width:28, height:28, borderRadius:8, background:cfg.accent,
+    <NoteCard color={th.color} id={`cn-${idx}`}>
+      <SectionHeader emoji={th.emoji} title={s.title || 'Key Definitions'} color={th.color} />
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(240px,1fr))', gap:10 }}>
+        {s.items?.map((item,i)=>(
+          <div key={i} style={{ padding:'12px 16px', borderRadius:12,
+            background:'rgba(16,185,129,0.06)', border:'1px solid rgba(16,185,129,0.2)' }}>
+            <p style={{ fontSize:13, fontWeight:800, color:'#10B981', marginBottom:5 }}>{item.term}</p>
+            <p style={{ fontSize:12, color:'var(--text-secondary)', lineHeight:1.55 }}>{item.definition}</p>
+          </div>
+        ))}
+      </div>
+    </NoteCard>
+  );
+}
+
+function ConceptsSection({ s, idx }) {
+  const th = SECTION_THEME.concepts;
+  return (
+    <NoteCard color={th.color} id={`cn-${idx}`}>
+      <SectionHeader emoji={th.emoji} title={s.title || 'Core Concepts'} color={th.color} />
+      <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+        {s.items?.map((item,i)=>(
+          <div key={i} style={{ padding:'14px 16px', borderRadius:13,
+            background:'var(--bg-secondary)', border:'1px solid var(--border-color)' }}>
+            <div style={{ display:'flex', gap:10, marginBottom:6, alignItems:'center' }}>
+              <div style={{ width:24, height:24, borderRadius:7, background:'rgba(59,130,246,0.15)',
                 display:'flex', alignItems:'center', justifyContent:'center',
-                fontSize:13, fontWeight:900, color:'white', flexShrink:0 }}>
-                {i+1}
-              </div>
-              <p style={{ fontSize:14, fontWeight:800, color:cfg.accent }}>{item.title}</p>
+                fontSize:11, fontWeight:800, color:'#3B82F6', flexShrink:0 }}>{i+1}</div>
+              <p style={{ fontSize:14, fontWeight:700, color:'var(--text-primary)' }}>{item.name}</p>
             </div>
-            {item.description && (
-              <div style={{ padding:'12px 16px', background:'var(--bg-card)' }}>
-                <p style={{ fontSize:13, color:'var(--text-secondary)', lineHeight:1.65 }}>
-                  {item.description}
-                </p>
-                {item.code && <CodeBlock code={item.code} lang="python" />}
+            <p style={{ fontSize:13, color:'var(--text-secondary)', lineHeight:1.65, marginBottom:item.example?8:0 }}>{item.explanation}</p>
+            {item.example && (
+              <div style={{ padding:'7px 11px', borderRadius:8, background:'rgba(249,115,22,0.08)',
+                border:'1px solid rgba(249,115,22,0.2)', fontSize:12, color:'#F97316' }}>
+                🧪 {item.example}
               </div>
             )}
           </div>
         ))}
       </div>
-    </motion.div>
+    </NoteCard>
   );
 }
 
-// ── Tips Section (PDF important note / warning boxes) ─────────────────────
-function TipsSection({ section, idx }) {
-  const TIP_CFG = {
-    tip:       { ...C.yellow, icon:'💡', label:'Tip' },
-    warning:   { ...C.red,    icon:'⚠️', label:'Warning' },
-    important: { ...C.blue,   icon:'📌', label:'Important' },
+function FlowchartSection({ s, idx }) {
+  const th = SECTION_THEME.flowchart;
+  return (
+    <NoteCard color={th.color} id={`cn-${idx}`}>
+      <SectionHeader emoji={th.emoji} title={s.title || 'Process Flow'} color={th.color} />
+      <div style={{ position:'relative', paddingLeft:32 }}>
+        <div style={{ position:'absolute', left:15, top:8, bottom:8, width:2,
+          background:'rgba(20,184,166,0.3)', borderRadius:1 }} />
+        {s.steps?.map((step,i)=>(
+          <div key={i} style={{ display:'flex', gap:14, marginBottom:14, position:'relative' }}>
+            <div style={{ width:30, height:30, borderRadius:'50%', background:'rgba(20,184,166,0.15)',
+              border:'2px solid rgba(20,184,166,0.5)', display:'flex', alignItems:'center',
+              justifyContent:'center', fontSize:13, fontWeight:800, color:'#14B8A6',
+              flexShrink:0, zIndex:1, marginLeft:-15 }}>
+              {step.step||i+1}
+            </div>
+            <div style={{ paddingTop:4 }}>
+              <p style={{ fontSize:14, fontWeight:700, color:'var(--text-primary)', marginBottom:3 }}>{step.label}</p>
+              {step.description && <p style={{ fontSize:12, color:'var(--text-secondary)', lineHeight:1.55 }}>{step.description}</p>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </NoteCard>
+  );
+}
+
+function ComparisonSection({ s, idx }) {
+  const th = SECTION_THEME.comparison;
+  return (
+    <NoteCard color={th.color} id={`cn-${idx}`}>
+      <SectionHeader emoji={th.emoji} title={s.title || 'Comparison'} color={th.color} />
+      <div style={{ overflowX:'auto', borderRadius:10, overflow:'hidden', border:'1px solid rgba(139,92,246,0.25)' }}>
+        <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+          {s.headers?.length>0 && (
+            <thead>
+              <tr>{s.headers.map((h,i)=>(
+                <th key={i} style={{ padding:'10px 14px', textAlign:'left', fontWeight:700,
+                  color:'#8B5CF6', background:'rgba(139,92,246,0.1)',
+                  borderBottom:'2px solid rgba(139,92,246,0.25)' }}>{h}</th>
+              ))}</tr>
+            </thead>
+          )}
+          <tbody>{(s.rows||[]).map((row,ri)=>(
+            <tr key={ri} style={{ background:ri%2===0?'transparent':'rgba(139,92,246,0.03)' }}>
+              {(Array.isArray(row)?row:[row]).map((cell,ci)=>(
+                <td key={ci} style={{ padding:'9px 14px', borderBottom:'1px solid rgba(139,92,246,0.1)',
+                  color:ci===0?'var(--text-primary)':'var(--text-secondary)', fontWeight:ci===0?600:400 }}>{cell}</td>
+              ))}
+            </tr>
+          ))}</tbody>
+        </table>
+      </div>
+    </NoteCard>
+  );
+}
+
+function ExamplesSection({ s, idx }) {
+  const th = SECTION_THEME.examples;
+  return (
+    <NoteCard color={th.color} id={`cn-${idx}`}>
+      <SectionHeader emoji={th.emoji} title={s.title || 'Examples'} color={th.color} />
+      <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+        {s.items?.map((item,i)=>(
+          <div key={i} style={{ padding:'14px 16px', borderRadius:13,
+            background:'rgba(249,115,22,0.05)', border:'1px solid rgba(249,115,22,0.18)' }}>
+            <p style={{ fontSize:14, fontWeight:700, color:'#F97316', marginBottom:6 }}>{i+1}. {item.title}</p>
+            <p style={{ fontSize:13, color:'var(--text-secondary)', lineHeight:1.65, marginBottom:item.code?4:0 }}>{item.description}</p>
+            {item.code && <CodeBlock code={item.code} lang="python" />}
+          </div>
+        ))}
+      </div>
+    </NoteCard>
+  );
+}
+
+function TipsSection({ s, idx }) {
+  const cfgMap = {
+    tip:      { emoji:'💡', color: COLORS.yellow },
+    warning:  { emoji:'⚠️', color: COLORS.red },
+    important:{ emoji:'📌', color: COLORS.blue },
   };
   return (
-    <motion.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:idx*0.05}}>
-      <SectionBanner type="tips" title={section.title} idx={idx} />
+    <div id={`cn-${idx}`}>
+      <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
+        <span style={{ fontSize:20 }}>⚠️</span>
+        <h2 style={{ fontSize:18, fontWeight:800, color:'var(--text-primary)' }}>{s.title||'Tips & Warnings'}</h2>
+      </div>
       <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-        {(section.tips||[]).map((tip, i) => {
-          const tc = TIP_CFG[tip.type] || TIP_CFG.tip;
+        {s.tips?.map((tip,i)=>{
+          const c = cfgMap[tip.type]||cfgMap.tip;
           return (
-            <div key={i} style={{ display:'flex', gap:12, padding:'14px 18px', borderRadius:12,
-              background:tc.bg, border:`1.5px solid ${tc.border}` }}>
-              <span style={{ fontSize:20, flexShrink:0 }}>{tc.icon}</span>
-              <div>
-                <span style={{ fontSize:11, fontWeight:800, color:tc.accent,
-                  textTransform:'uppercase', letterSpacing:'0.07em', marginRight:6 }}>{tc.label}:</span>
-                <span style={{ fontSize:13, color:'var(--text-primary)', lineHeight:1.6 }}>{tip.text}</span>
-              </div>
+            <div key={i} style={{ padding:'12px 16px', borderRadius:12,
+              background:c.color.bg, border:`1px solid ${c.color.border}`,
+              display:'flex', gap:10, alignItems:'flex-start' }}>
+              <span style={{ fontSize:16, flexShrink:0 }}>{c.emoji}</span>
+              <p style={{ fontSize:13, color:'var(--text-primary)', lineHeight:1.6 }}>{tip.text}</p>
             </div>
           );
         })}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
-// ── Memory Tricks (PDF pink mnemonic style) ───────────────────────────────
-function MemorySection({ section, idx }) {
-  const cfg = SEC.memory;
+function MemorySection({ s, idx }) {
   return (
-    <motion.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:idx*0.05}}>
-      <SectionBanner type="memory" title={section.title} idx={idx} />
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))', gap:10 }}>
-        {(section.tricks||[]).map((trick, i) => (
-          <div key={i} style={{ padding:'14px 16px', borderRadius:13,
-            background:cfg.bg, border:`1.5px solid ${cfg.border}`,
-            display:'flex', alignItems:'flex-start', gap:10 }}>
-            <span style={{ fontSize:20, flexShrink:0 }}>✨</span>
-            <p style={{ fontSize:13, color:'var(--text-primary)', lineHeight:1.55 }}>{trick}</p>
+    <div id={`cn-${idx}`}>
+      <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
+        <span style={{ fontSize:20 }}>🧠</span>
+        <h2 style={{ fontSize:18, fontWeight:800, color:'#EC4899' }}>{s.title||'Memory Tricks'}</h2>
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(230px,1fr))', gap:10 }}>
+        {s.tricks?.map((t,i)=>(
+          <div key={i} style={{ padding:'14px 16px', borderRadius:12,
+            background:'rgba(236,72,153,0.07)', border:'1px solid rgba(236,72,153,0.2)',
+            display:'flex', gap:9, alignItems:'flex-start' }}>
+            <span style={{ fontSize:18, flexShrink:0 }}>✨</span>
+            <p style={{ fontSize:13, color:'var(--text-primary)', lineHeight:1.55 }}>{t}</p>
           </div>
         ))}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
-// ── Quiz Section (interactive MCQ, PDF question style) ────────────────────
-function QuizSection({ section, idx }) {
-  const [answers,  setAnswers]  = useState({});
-  const [revealed, setRevealed] = useState({});
-  const cfg = SEC.quiz;
+function QuizSection({ s, idx }) {
+  const [answers, setAnswers] = useState({});
+  const [shown,   setShown]   = useState({});
   return (
-    <motion.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:idx*0.05}}>
-      <SectionBanner type="quiz" title={section.title} idx={idx} />
-      <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-        {(section.questions||[]).map((q, qi) => {
+    <div id={`cn-${idx}`}>
+      <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
+        <span style={{ fontSize:20 }}>❓</span>
+        <h2 style={{ fontSize:18, fontWeight:800, color:'#8B5CF6' }}>{s.title||'Quick Quiz'}</h2>
+      </div>
+      <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+        {s.questions?.map((q,qi)=>{
           const chosen = answers[qi];
-          const done = revealed[qi];
-          const correct = chosen && chosen.charAt(0) === q.answer?.charAt(0);
+          const revealed = shown[qi];
           return (
-            <div key={qi} style={{ borderRadius:14, overflow:'hidden',
-              border:`1.5px solid ${done ? (correct ? 'rgba(16,185,129,0.4)' : 'rgba(239,68,68,0.4)') : cfg.border}` }}>
-              <div style={{ padding:'14px 18px', background:cfg.bg,
-                borderBottom:`1px solid ${cfg.border}` }}>
-                <p style={{ fontSize:14, fontWeight:700, color:'var(--text-primary)' }}>
-                  <span style={{ color:cfg.accent, marginRight:8 }}>Q{qi+1}.</span>{q.q}
-                </p>
-              </div>
-              <div style={{ padding:'14px 18px', background:'var(--bg-card)',
-                display:'flex', flexDirection:'column', gap:8 }}>
-                {(q.options||[]).map((opt, oi) => {
-                  const isChosen = chosen === opt;
-                  const isCorrect = done && opt.charAt(0) === q.answer?.charAt(0);
-                  const isWrong = done && isChosen && !isCorrect;
+            <div key={qi} style={{ padding:'16px 18px', borderRadius:14,
+              background:'var(--bg-secondary)', border:`1px solid ${revealed?(chosen&&chosen.startsWith(q.answer)?'rgba(16,185,129,0.4)':'rgba(244,63,94,0.3)'):'var(--border-color)'}` }}>
+              <p style={{ fontSize:14, fontWeight:700, color:'var(--text-primary)', marginBottom:10 }}>Q{qi+1}. {q.q}</p>
+              <div style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:10 }}>
+                {q.options?.map((opt,oi)=>{
+                  let bg='var(--bg-tertiary)', border='var(--border-color)', color='var(--text-primary)';
+                  if(chosen===opt&&!revealed){bg='rgba(99,102,241,0.12)';border='rgba(99,102,241,0.4)';color='var(--color-primary-light)';}
+                  if(revealed&&opt.startsWith(q.answer)){bg='rgba(16,185,129,0.12)';border='rgba(16,185,129,0.4)';color='#10B981';}
+                  if(revealed&&chosen===opt&&!opt.startsWith(q.answer)){bg='rgba(244,63,94,0.1)';border='rgba(244,63,94,0.35)';color='#F43F5E';}
                   return (
-                    <button key={oi} onClick={() => !done && setAnswers(p=>({...p,[qi]:opt}))}
-                      style={{ padding:'10px 14px', borderRadius:10, border:'none',
-                        cursor: done ? 'default' : 'pointer', textAlign:'left', fontFamily:'inherit',
-                        fontSize:13, lineHeight:1.5, transition:'all 0.15s',
-                        background: isCorrect ? 'rgba(16,185,129,0.12)' : isWrong ? 'rgba(239,68,68,0.1)'
-                          : isChosen ? 'rgba(99,102,241,0.1)' : 'var(--bg-tertiary)',
-                        color: isCorrect ? '#10B981' : isWrong ? '#EF4444' : isChosen ? 'var(--color-primary-light)' : 'var(--text-primary)',
-                        outline: isCorrect ? '1.5px solid rgba(16,185,129,0.4)' : isWrong ? '1.5px solid rgba(239,68,68,0.3)'
-                          : isChosen ? '1.5px solid rgba(99,102,241,0.3)' : '1px solid var(--border-color)' }}>
-                      {isCorrect && '✅ '}{isWrong && '❌ '}{opt}
-                    </button>
+                    <button key={oi} onClick={()=>!revealed&&setAnswers(p=>({...p,[qi]:opt}))}
+                      style={{ padding:'8px 12px', borderRadius:9, border:`1px solid ${border}`,
+                        background:bg, color, fontSize:13, textAlign:'left', cursor:revealed?'default':'pointer',
+                        fontFamily:'inherit', transition:'all 0.15s' }}>{opt}</button>
                   );
                 })}
-                {chosen && !done && (
-                  <button onClick={() => setRevealed(p=>({...p,[qi]:true}))}
-                    style={{ alignSelf:'flex-start', padding:'7px 18px', borderRadius:10, border:'none',
-                      cursor:'pointer', background:'var(--gradient-primary)', color:'white',
-                      fontSize:12, fontWeight:700, marginTop:4 }}>
-                    Check Answer
-                  </button>
-                )}
-                {done && q.explanation && (
-                  <div style={{ padding:'10px 12px', borderRadius:9, marginTop:4,
-                    background:'rgba(99,102,241,0.06)', border:'1px solid rgba(99,102,241,0.18)' }}>
-                    <span style={{ fontSize:11, fontWeight:700, color:'var(--color-primary-light)' }}>💡 </span>
-                    <span style={{ fontSize:12, color:'var(--text-secondary)' }}>{q.explanation}</span>
-                  </div>
-                )}
               </div>
+              {chosen&&!revealed&&(
+                <button onClick={()=>setShown(p=>({...p,[qi]:true}))}
+                  style={{ padding:'6px 16px', borderRadius:8, border:'none', cursor:'pointer',
+                    background:'var(--gradient-primary)', color:'white', fontSize:12, fontWeight:700 }}>
+                  Check Answer
+                </button>
+              )}
+              {revealed&&q.explanation&&(
+                <div style={{ padding:'9px 12px', borderRadius:8, background:'rgba(139,92,246,0.07)',
+                  border:'1px solid rgba(139,92,246,0.2)', fontSize:12, color:'var(--text-secondary)' }}>
+                  💡 {q.explanation}
+                </div>
+              )}
             </div>
           );
         })}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
-// ── Summary Section (PDF star takeaways + exam tips) ──────────────────────
-function SummarySection({ section, idx }) {
-  const cfg = SEC.summary;
+function SummarySection({ s, idx }) {
+  const th = SECTION_THEME.summary;
   return (
-    <motion.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:idx*0.05}}>
-      <SectionBanner type="summary" title={section.title} idx={idx} />
-      <div style={{ borderRadius:14, background:cfg.bg, border:`1.5px solid ${cfg.border}`,
-        overflow:'hidden' }}>
-        {section.points?.length > 0 && (
-          <div style={{ padding:'18px 20px', borderBottom: section.examTips?.length ? `1px solid ${cfg.border}` : 'none' }}>
-            <p style={{ fontSize:11, fontWeight:800, color:cfg.accent, textTransform:'uppercase',
-              letterSpacing:'0.07em', marginBottom:12 }}>★ Key Takeaways</p>
-            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-              {section.points.map((pt, i) => (
-                <div key={i} style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
-                  <Star size={14} color={cfg.accent} style={{ flexShrink:0, marginTop:2 }} />
-                  <span style={{ fontSize:13, color:'var(--text-primary)', lineHeight:1.6, fontWeight:500 }}>{pt}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        {section.examTips?.length > 0 && (
-          <div style={{ padding:'16px 20px', background:'rgba(245,158,11,0.06)' }}>
-            <p style={{ fontSize:11, fontWeight:800, color:'#F59E0B', textTransform:'uppercase',
-              letterSpacing:'0.07em', marginBottom:10 }}>🎯 Exam Tips</p>
-            {section.examTips.map((tip, i) => (
-              <div key={i} style={{ display:'flex', alignItems:'flex-start', gap:8, marginBottom:6 }}>
-                <ArrowRight size={13} color="#F59E0B" style={{ flexShrink:0, marginTop:2 }} />
-                <span style={{ fontSize:12, color:'var(--text-secondary)', lineHeight:1.5 }}>{tip}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </motion.div>
+    <NoteCard color={th.color} id={`cn-${idx}`} style={{ background:'linear-gradient(135deg,rgba(20,184,166,0.09),rgba(99,102,241,0.06))' }}>
+      <SectionHeader emoji={th.emoji} title={s.title||'Key Takeaways'} color={th.color} />
+      {s.points?.map((p,i)=>(
+        <div key={i} style={{ display:'flex', gap:10, marginBottom:8 }}>
+          <span style={{ color:'#14B8A6', fontWeight:800, flexShrink:0 }}>★</span>
+          <span style={{ fontSize:13, color:'var(--text-primary)', lineHeight:1.6 }}>{p}</span>
+        </div>
+      ))}
+      {s.examTips?.length>0&&(
+        <div style={{ marginTop:14, padding:'12px 16px', borderRadius:12,
+          background:'rgba(245,158,11,0.09)', border:'1px solid rgba(245,158,11,0.25)' }}>
+          <p style={{ fontSize:11, fontWeight:800, color:'#F59E0B', textTransform:'uppercase',
+            letterSpacing:'0.08em', marginBottom:8 }}>🎯 Exam Tips</p>
+          {s.examTips.map((t,i)=>(
+            <p key={i} style={{ fontSize:12, color:'var(--text-secondary)', marginBottom:4, lineHeight:1.5 }}>→ {t}</p>
+          ))}
+        </div>
+      )}
+    </NoteCard>
   );
 }
 
-// ── Section Router ─────────────────────────────────────────────────────────
+// ── Section router ─────────────────────────────────────────────────────────
 function renderSection(s, i) {
-  switch (s.type) {
-    case 'overview':    return <OverviewSection    key={i} section={s} idx={i} />;
-    case 'definitions': return <DefinitionsSection key={i} section={s} idx={i} />;
-    case 'concepts':    return <ConceptsSection    key={i} section={s} idx={i} />;
-    case 'flowchart':   return <FlowchartSection   key={i} section={s} idx={i} />;
-    case 'comparison':  return <ComparisonSection  key={i} section={s} idx={i} />;
-    case 'examples':    return <ExamplesSection    key={i} section={s} idx={i} />;
-    case 'tips':        return <TipsSection        key={i} section={s} idx={i} />;
-    case 'memory':      return <MemorySection      key={i} section={s} idx={i} />;
-    case 'quiz':        return <QuizSection        key={i} section={s} idx={i} />;
-    case 'summary':     return <SummarySection     key={i} section={s} idx={i} />;
+  const props = { s, idx:i };
+  switch(s.type) {
+    case 'overview':    return <OverviewSection    {...props} />;
+    case 'definitions': return <DefinitionsSection {...props} />;
+    case 'concepts':    return <ConceptsSection    {...props} />;
+    case 'flowchart':   return <FlowchartSection   {...props} />;
+    case 'comparison':  return <ComparisonSection  {...props} />;
+    case 'examples':    return <ExamplesSection    {...props} />;
+    case 'tips':        return <TipsSection        {...props} />;
+    case 'memory':      return <MemorySection      {...props} />;
+    case 'quiz':        return <QuizSection        {...props} />;
+    case 'summary':     return <SummarySection     {...props} />;
     default: return (
-      <motion.div key={i} initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:i*0.05}}>
-        <SectionBanner type="overview" title={s.title} idx={i} />
-        <div style={{ padding:'18px 20px', borderRadius:14, background:'var(--bg-card)',
-          border:'1px solid var(--border-color)' }}>
-          {s.content && <p style={{ fontSize:13, color:'var(--text-secondary)', lineHeight:1.7 }}>{s.content}</p>}
-        </div>
-      </motion.div>
+      <div id={`cn-${i}`} style={{ padding:'20px', borderRadius:14,
+        background:'var(--bg-secondary)', border:'1px solid var(--border-color)' }}>
+        <h2 style={{ fontSize:16, fontWeight:700, color:'var(--text-primary)', marginBottom:8 }}>{s.title}</h2>
+        {s.content&&<p style={{ fontSize:13, color:'var(--text-secondary)', lineHeight:1.7 }}>{s.content}</p>}
+      </div>
     );
   }
 }
 
-// ── Main Renderer ──────────────────────────────────────────────────────────
+// ── Main export ────────────────────────────────────────────────────────────
 export default function CreativeNoteRenderer({ notes }) {
   if (!notes) return null;
-  const sections = notes.sections || [];
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
-      <NoteHeader notes={notes} />
-      {sections.length > 0 && <TOC sections={sections} />}
-      {sections.map((s, i) => renderSection(s, i))}
-      {/* Footer */}
-      <div style={{ textAlign:'center', padding:'20px', opacity:0.5 }}>
-        <p style={{ fontSize:12, color:'var(--text-muted)' }}>
-          ✨ Generated by NoteNova AI · Creative Notes
-        </p>
-      </div>
+    <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+      <CoverSection notes={notes} />
+      <TOC sections={notes.sections||[]} />
+      {(notes.sections||[]).map((s,i)=>(
+        <motion.div key={i} initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }}
+          transition={{ delay:i*0.05 }}>
+          {renderSection(s, i)}
+        </motion.div>
+      ))}
     </div>
   );
 }
