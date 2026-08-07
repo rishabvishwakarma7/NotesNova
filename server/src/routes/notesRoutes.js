@@ -11,11 +11,13 @@ import {
   importMarkdown,
   updateNote,
   deleteNote,
+  generateCreativeNotes,
 } from '../controllers/notesController.js';
 
 const router = Router();
 
 router.post('/generate', requireAuth, aiLimiter, validateNoteGeneration, generateNotes);
+router.post('/creative', requireAuth, aiLimiter, generateCreativeNotes);
 router.post('/transform', requireAuth, aiLimiter, validateNoteTransform, aiTransform);
 router.post('/import/markdown', requireAuth, importMarkdown);
 router.get('/', requireAuth, getNotes);

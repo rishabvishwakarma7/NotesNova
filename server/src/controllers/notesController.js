@@ -148,3 +148,124 @@ export const deleteNote = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// ── Creative Notes ────────────────────────────────────────────────────────────
+export const generateCreativeNotes = async (req, res) => {
+  try {
+    const { topic, subject = '', level = 'intermediate', provider = 'groq' } = req.body;
+    if (!topic) return res.status(400).json({ error: 'Topic is required' });
+
+    const subjectCtx = subject ? ` (Subject: ${subject})` : '';
+    const levelCtx = level || 'intermediate';
+
+    const systemPrompt = `You are NoteNova AI, an expert educational content creator. Generate comprehensive, structured study notes as a JSON object. Always return valid JSON only — no markdown, no code fences.`;
+
+    const userPrompt = `Create creative study notes for: "${topic}"${subjectCtx}
+Level: ${levelCtx}
+
+Return a JSON object with this EXACT structure:
+{
+  "title": "Topic Title",
+  "subject": "Subject Name",
+  "level": "beginner|intermediate|advanced",
+  "emoji": "relevant emoji",
+  "color": "blue|green|orange|purple|teal",
+  "sections": [
+    {
+      "type": "overview",
+      "title": "What is ${topic}?",
+      "content": "Clear 2-3 sentence explanation",
+      "keyPoints": ["point 1", "point 2", "point 3"]
+    },
+    {
+      "type": "definitions",
+      "title": "Key Definitions",
+      "items": [
+        { "term": "Term Name", "definition": "Clear definition" }
+      ]
+    },
+    {
+      "type": "concepts",
+      "title": "Core Concepts",
+      "items": [
+        { "name": "Concept", "explanation": "Explanation", "example": "Example" }
+      ]
+    },
+    {
+      "type": "flowchart",
+      "title": "Process / Flow",
+      "steps": [
+        { "step": 1, "label": "Step Name", "description": "What happens" }
+      ]
+    },
+    {
+      "type": "comparison",
+      "title": "Key Comparisons",
+      "headers": ["Aspect", "Option A", "Option B"],
+      "rows": [["row item", "value A", "value B"]]
+    },
+    {
+      "type": "examples",
+      "title": "Real-World Examples",
+      "items": [
+        { "title": "Example Title", "description": "Example explanation", "code": "optional code snippet or empty string" }
+      ]
+    },
+    {
+      "type": "tips",
+      "title": "Important Tips & Common Mistakes",
+      "tips": [{ "type": "tip|warning|important", "text": "Tip text" }]
+    },
+    {
+      "type": "memory",
+      "title": "Memory Tricks",
+      "tricks": ["Mnemonic or analogy 1", "Mnemonic or analogy 2"]
+    },
+    {
+      "type": "quiz",
+      "title": "Quick Quiz",
+      "questions": [
+        {
+          "q": "Question?",
+          "options": ["A) option", "B) option", "C) option", "D) option"],
+          "answer": "A",
+          "explanation": "Why this answer"
+        }
+      ]
+    },
+    {
+      "type": "summary",
+      "title": "Key Takeaways",
+      "points": ["Takeaway 1", "Takeaway 2", "Takeaway 3"],
+      "examTips": ["Exam tip 1", "Exam tip 2"]
+    }
+  ]
+}
+
+Rules:
+- Include ALL section types listed above
+- Generate realistic, educational content (not placeholder text)
+- For code examples, include actual code relevant to the topic
+- Make definitions clear and concise
+- Quiz should have 4 questions minimum
+- Return ONLY the JSON object, nothing else`;
+
+    const raw = await generateTextWithProvider(systemPrompt, userPrompt, provider);
+
+    // Extract JSON robustly
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('AI did not return valid JSON');
+
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonMatch[0]);
+    } catch {
+      throw new Error('Failed to parse creative notes JSON');
+    }
+
+    res.json({ notes: parsed, topic, subject, level });
+  } catch (err) {
+    console.error('Creative notes error:', err);
+    res.status(500).json({ error: err.message });
+  }
+};

@@ -38,10 +38,11 @@ const navGroups = [
   {
     label: 'AI Tools',
     items: [
-      { icon: MessageSquare, label: 'AI Tutor',       href: '/dashboard/chat' },
-      { icon: Wand2,         label: 'Smart Notes',    href: '/dashboard/generate' },
-      { icon: Youtube,       label: 'YouTube Notes',  href: '/dashboard/video-notes' },
-      { icon: FileQuestion,  label: 'PYQ Analyzer',  href: '/dashboard/pyq', badge: { text: 'AI', color: '#F43F5E' } },
+      { icon: MessageSquare, label: 'AI Tutor',        href: '/dashboard/chat' },
+      { icon: Sparkles,      label: 'Creative Notes',  href: '/dashboard/creative-notes', badge: { text: 'NEW', color: '#8B5CF6' } },
+      { icon: Wand2,         label: 'Smart Notes',     href: '/dashboard/generate' },
+      { icon: Youtube,       label: 'YouTube Notes',   href: '/dashboard/video-notes' },
+      { icon: FileQuestion,  label: 'PYQ Analyzer',   href: '/dashboard/pyq', badge: { text: 'AI', color: '#F43F5E' } },
     ],
   },
   {
@@ -67,10 +68,10 @@ const navGroups = [
 
 const CREATE_OPTIONS = [
   { icon: Map,        label: 'Study Journey',    href: '/dashboard/journey',        color: '#10B981' },
-  { icon: Wand2,      label: 'Generate Notes',   href: '/dashboard/generate',       color: '#8B5CF6' },
+  { icon: Sparkles,   label: 'Creative Notes',   href: '/dashboard/creative-notes', color: '#8B5CF6' },
+  { icon: Wand2,      label: 'Smart Notes',      href: '/dashboard/generate',       color: '#6366F1' },
   { icon: Brain,      label: 'Create Quiz',      href: '/dashboard/quiz',           color: '#06B6D4' },
   { icon: Layers,     label: 'Create Flashcards',href: '/dashboard/flashcards',     color: '#10B981' },
-  { icon: FolderOpen, label: 'Add Subject',      href: '/dashboard/subjects',       color: '#F59E0B' },
   { icon: Youtube,    label: 'YouTube Video',    href: '/dashboard/video-notes',    color: '#EF4444' },
 ];
 
