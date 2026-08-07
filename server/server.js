@@ -26,6 +26,7 @@ import exportRoutes from './src/routes/exportRoutes.js';
 import recommendationsRoutes from './src/routes/recommendationsRoutes.js';
 import journeyRoutes from './src/routes/journeyRoutes.js';
 import weeklyReportRoutes from './src/routes/weeklyReportRoutes.js';
+import premiumRoutes from './src/routes/premiumRoutes.js';
 
 // Validate environment startup config
 validateEnv();
@@ -66,6 +67,7 @@ app.use('/api/export', exportRoutes);
 app.use('/api/recommendations', recommendationsRoutes);
 app.use('/api/journey', journeyRoutes);
 app.use('/api/weekly-report', weeklyReportRoutes);
+app.use('/api/premium', premiumRoutes);
 
 // Error handling
 app.use(errorHandler);

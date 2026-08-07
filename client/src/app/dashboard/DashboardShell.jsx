@@ -10,7 +10,7 @@ import {
   Sparkles, ChevronLeft, ChevronRight, Menu, Wand2, Youtube,
   Brain, CalendarDays, Search, RefreshCw, FileQuestion, BarChart3,
   X, Timer, Trash2, Plus, BookOpen, Bell, Palette, User,
-  ChevronDown, Map, BookMarked, TrendingUp,
+  ChevronDown, Map, BookMarked, TrendingUp, Crown,
 } from 'lucide-react';
 import ThemeToggle from '@/components/ui/ThemeToggle';
 import SearchModal from '@/components/ui/SearchModal';
@@ -25,6 +25,13 @@ const navGroups = [
     items: [
       { icon: Home,      label: 'Dashboard',     href: '/dashboard' },
       { icon: Map,       label: 'Study Journey',  href: '/dashboard/journey', badge: { text: 'NEW', color: '#10B981' } },
+    ],
+  },
+  {
+    label: 'Premium',
+    items: [
+      { icon: Crown,   label: 'Focus Mode',     href: '/dashboard/focus',   badge: { text: 'PRO', color: '#F59E0B' } },
+      { icon: Sparkles,label: 'Get Premium',    href: '/dashboard/premium' },
     ],
   },
   {
