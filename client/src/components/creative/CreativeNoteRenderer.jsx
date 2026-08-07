@@ -1,502 +1,553 @@
 'use client';
-
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import {
-  BookOpen, Lightbulb, AlertTriangle, CheckCircle2, Star,
-  Code2, ArrowRight, Brain, RefreshCw, ChevronDown, ChevronUp, Copy, Check,
-} from 'lucide-react';
+import { Copy, Check, ChevronDown, ChevronUp, Star, ArrowRight, CheckCircle2, AlertCircle, X } from 'lucide-react';
 
-// ── Semantic color system ──────────────────────────────────────────────────
-const THEME = {
-  blue:   { bg: '#EFF6FF', border: '#BFDBFE', text: '#1D4ED8', dark: { bg: 'rgba(59,130,246,0.1)',  border: 'rgba(59,130,246,0.25)',  text: '#93C5FD' } },
-  green:  { bg: '#F0FDF4', border: '#BBF7D0', text: '#15803D', dark: { bg: 'rgba(16,185,129,0.1)',  border: 'rgba(16,185,129,0.25)',  text: '#6EE7B7' } },
-  orange: { bg: '#FFF7ED', border: '#FED7AA', text: '#C2410C', dark: { bg: 'rgba(249,115,22,0.1)',  border: 'rgba(249,115,22,0.25)',  text: '#FB923C' } },
-  purple: { bg: '#FAF5FF', border: '#E9D5FF', text: '#7C3AED', dark: { bg: 'rgba(139,92,246,0.1)',  border: 'rgba(139,92,246,0.25)',  text: '#C4B5FD' } },
-  yellow: { bg: '#FEFCE8', border: '#FDE68A', text: '#B45309', dark: { bg: 'rgba(245,158,11,0.1)',  border: 'rgba(245,158,11,0.25)',  text: '#FCD34D' } },
-  red:    { bg: '#FFF1F2', border: '#FECDD3', text: '#BE123C', dark: { bg: 'rgba(244,63,94,0.1)',   border: 'rgba(244,63,94,0.25)',   text: '#FDA4AF' } },
-  pink:   { bg: '#FDF2F8', border: '#F9A8D4', text: '#9D174D', dark: { bg: 'rgba(236,72,153,0.1)',  border: 'rgba(236,72,153,0.25)',  text: '#F9A8D4' } },
-  teal:   { bg: '#F0FDFA', border: '#99F6E4', text: '#0F766E', dark: { bg: 'rgba(20,184,166,0.1)',  border: 'rgba(20,184,166,0.25)',  text: '#5EEAD4' } },
+// PDF-inspired color palette — semantic, never random
+const C = {
+  blue:   { bg:'rgba(59,130,246,0.08)',   border:'rgba(59,130,246,0.25)',  accent:'#3B82F6', light:'#EFF6FF' },
+  green:  { bg:'rgba(16,185,129,0.08)',   border:'rgba(16,185,129,0.25)',  accent:'#10B981', light:'#F0FDF4' },
+  orange: { bg:'rgba(249,115,22,0.08)',   border:'rgba(249,115,22,0.25)',  accent:'#F97316', light:'#FFF7ED' },
+  purple: { bg:'rgba(139,92,246,0.08)',   border:'rgba(139,92,246,0.25)',  accent:'#8B5CF6', light:'#FAF5FF' },
+  yellow: { bg:'rgba(234,179,8,0.1)',     border:'rgba(234,179,8,0.3)',    accent:'#EAB308', light:'#FEFCE8' },
+  red:    { bg:'rgba(239,68,68,0.08)',    border:'rgba(239,68,68,0.25)',   accent:'#EF4444', light:'#FFF1F2' },
+  pink:   { bg:'rgba(236,72,153,0.08)',   border:'rgba(236,72,153,0.25)', accent:'#EC4899', light:'#FDF2F8' },
+  teal:   { bg:'rgba(20,184,166,0.08)',   border:'rgba(20,184,166,0.25)',  accent:'#14B8A6', light:'#F0FDFA' },
 };
 
-function useThemeColor(color = 'purple') {
-  const isDark = typeof document !== 'undefined' &&
-    document.documentElement.getAttribute('data-theme') !== 'light';
-  const t = THEME[color] || THEME.purple;
-  return isDark ? t.dark : t;
-}
+const SEC = {
+  overview:    { ...C.blue,   emoji:'📋', title_color:'#3B82F6' },
+  definitions: { ...C.green,  emoji:'📖', title_color:'#10B981' },
+  concepts:    { ...C.purple, emoji:'💡', title_color:'#8B5CF6' },
+  flowchart:   { ...C.teal,   emoji:'🔄', title_color:'#14B8A6' },
+  comparison:  { ...C.purple, emoji:'⚖️', title_color:'#8B5CF6' },
+  examples:    { ...C.orange, emoji:'🧪', title_color:'#F97316' },
+  tips:        { ...C.yellow, emoji:'⚠️', title_color:'#EAB308' },
+  memory:      { ...C.pink,   emoji:'🧠', title_color:'#EC4899' },
+  quiz:        { ...C.blue,   emoji:'❓', title_color:'#3B82F6' },
+  summary:     { ...C.teal,   emoji:'✅', title_color:'#14B8A6' },
+};
 
-// ── Cover Card ─────────────────────────────────────────────────────────────
-function CoverCard({ notes }) {
-  const levelColors = { beginner: '#10B981', intermediate: '#6366F1', advanced: '#F43F5E' };
-  const color = levelColors[notes.level] || '#8B5CF6';
+// ── Notebook Header (PDF-inspired spiral/notebook look) ──────────────────
+function NoteHeader({ notes }) {
+  const colors = { blue:'#3B82F6', green:'#10B981', orange:'#F97316', purple:'#8B5CF6', teal:'#14B8A6' };
+  const accent = colors[notes.color] || '#8B5CF6';
   return (
-    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-      style={{ padding: '36px 32px', borderRadius: 20, marginBottom: 20, position: 'relative', overflow: 'hidden',
-        background: `linear-gradient(135deg, ${color}18, ${color}08)`,
-        border: `1px solid ${color}35` }}>
-      <div style={{ position: 'absolute', top: -30, right: -30, width: 160, height: 160, borderRadius: '50%',
-        background: `${color}10`, pointerEvents: 'none' }} />
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
-        <div style={{ fontSize: 52, lineHeight: 1 }}>{notes.emoji || '📖'}</div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+    <div style={{ marginBottom:20, borderRadius:20, overflow:'hidden',
+      border:`2px solid ${accent}40`, boxShadow:`0 8px 32px ${accent}15` }}>
+      {/* Spiral holes strip */}
+      <div style={{ height:28, background:`${accent}15`,
+        display:'flex', alignItems:'center', paddingLeft:16, gap:14, borderBottom:`1px solid ${accent}20` }}>
+        {[...Array(12)].map((_,i) => (
+          <div key={i} style={{ width:14, height:14, borderRadius:'50%',
+            background:`${accent}30`, border:`2px solid ${accent}50` }} />
+        ))}
+      </div>
+      {/* Title area */}
+      <div style={{ padding:'24px 28px', background:'var(--bg-card)',
+        display:'flex', alignItems:'center', gap:20, flexWrap:'wrap' }}>
+        <div style={{ fontSize:56, lineHeight:1 }}>{notes.emoji || '📚'}</div>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ display:'flex', gap:8, marginBottom:8, flexWrap:'wrap' }}>
             {notes.subject && (
-              <span style={{ fontSize: 11, fontWeight: 700, color, background: `${color}15`,
-                padding: '3px 10px', borderRadius: 20, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+              <span style={{ fontSize:11, fontWeight:800, color:accent,
+                background:`${accent}12`, padding:'3px 12px', borderRadius:20,
+                textTransform:'uppercase', letterSpacing:'0.08em', border:`1px solid ${accent}30` }}>
                 {notes.subject}
               </span>
             )}
             {notes.level && (
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'white', background: color,
-                padding: '3px 10px', borderRadius: 20 }}>
+              <span style={{ fontSize:11, fontWeight:700, color:'white',
+                background: accent, padding:'3px 12px', borderRadius:20 }}>
                 {notes.level.charAt(0).toUpperCase() + notes.level.slice(1)}
               </span>
             )}
           </div>
-          <h1 style={{ fontSize: 28, fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1.2, marginBottom: 8 }}>
+          <h1 style={{ fontSize:'clamp(20px,4vw,30px)', fontWeight:900,
+            color:'var(--text-primary)', lineHeight:1.2, marginBottom:6 }}>
             {notes.title}
           </h1>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-            {notes.sections?.length || 0} sections · Visual study guide
+          <p style={{ fontSize:13, color:'var(--text-muted)' }}>
+            {notes.sections?.length || 0} sections · Visual study guide · NoteNova AI
           </p>
         </div>
       </div>
-    </motion.div>
-  );
-}
-
-// ── Table of Contents ──────────────────────────────────────────────────────
-function TableOfContents({ sections }) {
-  const icons = { overview:'📋', definitions:'📖', concepts:'💡', flowchart:'🔄',
-    comparison:'⚖️', examples:'🧪', tips:'⚠️', memory:'🧠', quiz:'❓', summary:'✅' };
-  return (
-    <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}
-      style={{ padding: '20px 22px', borderRadius: 16, marginBottom: 20,
-        background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
-      <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase',
-        letterSpacing: '0.07em', marginBottom: 12 }}>📑 Contents</p>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-        {sections.map((s, i) => (
-          <a key={i} href={`#section-${i}`}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px',
-              borderRadius: 20, fontSize: 12, fontWeight: 600, textDecoration: 'none',
-              background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)',
-              color: 'var(--text-secondary)', transition: 'all 0.15s' }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(139,92,246,0.4)'; e.currentTarget.style.color = 'var(--color-primary-light)'; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}>
-            {icons[s.type] || '📄'} {s.title}
-          </a>
-        ))}
-      </div>
-    </motion.div>
-  );
-}
-
-// ── Section card wrapper ───────────────────────────────────────────────────
-function SectionCard({ id, children, delay = 0 }) {
-  return (
-    <motion.div id={`section-${id}`}
-      initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: delay * 0.06 }}
-      style={{ marginBottom: 18 }}>
-      {children}
-    </motion.div>
-  );
-}
-
-function SectionHeader({ emoji, title, color = '#8B5CF6' }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-      <div style={{ width: 36, height: 36, borderRadius: 10, background: `${color}18`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
-        {emoji}
-      </div>
-      <h2 style={{ fontSize: 17, fontWeight: 800, color: 'var(--text-primary)' }}>{title}</h2>
     </div>
   );
 }
 
-// ── Overview ───────────────────────────────────────────────────────────────
-function OverviewSection({ section }) {
+// ── Table of Contents (PDF-style pill links) ──────────────────────────────
+function TOC({ sections }) {
+  const types = sections.map(s => s.type);
   return (
-    <div style={{ padding: '22px 24px', borderRadius: 16, background: 'var(--bg-card)',
-      border: '1px solid var(--border-color)' }}>
-      <SectionHeader emoji="📋" title={section.title} color="#6366F1" />
-      {section.content && (
-        <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.75, marginBottom: section.keyPoints?.length ? 16 : 0 }}>
-          {section.content}
-        </p>
-      )}
-      {section.keyPoints?.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {section.keyPoints.map((pt, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px',
-              borderRadius: 10, background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.12)' }}>
-              <CheckCircle2 size={15} color="#6366F1" style={{ flexShrink: 0, marginTop: 1 }} />
-              <span style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.5 }}>{pt}</span>
-            </div>
+    <div style={{ padding:'16px 20px', borderRadius:16, marginBottom:20,
+      background:'var(--bg-card)', border:'1px solid var(--border-color)' }}>
+      <p style={{ fontSize:11, fontWeight:800, color:'var(--text-muted)',
+        textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>📑 Contents</p>
+      <div style={{ display:'flex', flexWrap:'wrap', gap:7 }}>
+        {sections.map((s, i) => {
+          const cfg = SEC[s.type] || SEC.overview;
+          return (
+            <a key={i} href={`#cn-${i}`} style={{ display:'inline-flex', alignItems:'center',
+              gap:5, padding:'5px 13px', borderRadius:20, fontSize:12, fontWeight:600,
+              textDecoration:'none', background:cfg.bg, border:`1px solid ${cfg.border}`,
+              color:cfg.accent, transition:'all 0.15s', whiteSpace:'nowrap' }}
+              onMouseEnter={e => e.currentTarget.style.opacity='0.8'}
+              onMouseLeave={e => e.currentTarget.style.opacity='1'}>
+              <span>{cfg.emoji}</span> {s.title}
+            </a>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Section Header (PDF-style colored banner) ─────────────────────────────
+function SectionBanner({ type, title, idx }) {
+  const cfg = SEC[type] || SEC.overview;
+  return (
+    <div id={`cn-${idx}`} style={{ display:'flex', alignItems:'center', gap:12, marginBottom:16 }}>
+      <div style={{ width:44, height:44, borderRadius:13, background:cfg.bg,
+        border:`2px solid ${cfg.border}`, display:'flex', alignItems:'center',
+        justifyContent:'center', fontSize:22, flexShrink:0 }}>
+        {cfg.emoji}
+      </div>
+      <div style={{ flex:1, padding:'10px 18px', borderRadius:12,
+        background:cfg.bg, border:`2px solid ${cfg.border}` }}>
+        <h2 style={{ fontSize:16, fontWeight:800, color:cfg.accent, margin:0 }}>{title}</h2>
+      </div>
+    </div>
+  );
+}
+
+// ── Code Block (dark terminal style, PDF-inspired box) ────────────────────
+function CodeBlock({ code, lang = '' }) {
+  const [copied, setCopied] = useState(false);
+  if (!code?.trim()) return null;
+  return (
+    <div style={{ borderRadius:12, overflow:'hidden', marginTop:10, border:'2px solid rgba(99,102,241,0.3)' }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
+        padding:'8px 14px', background:'#1a1a2e', borderBottom:'1px solid rgba(255,255,255,0.1)' }}>
+        <div style={{ display:'flex', gap:6 }}>
+          {['#FF6B6B','#FFD93D','#6BCB77'].map((c,i) => (
+            <div key={i} style={{ width:11, height:11, borderRadius:'50%', background:c }} />
           ))}
         </div>
-      )}
-    </div>
-  );
-}
-
-// ── Definitions ────────────────────────────────────────────────────────────
-function DefinitionsSection({ section }) {
-  return (
-    <div style={{ padding: '22px 24px', borderRadius: 16, background: 'var(--bg-card)',
-      border: '1px solid rgba(16,185,129,0.2)' }}>
-      <SectionHeader emoji="📖" title={section.title} color="#10B981" />
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 12 }}>
-        {(section.items || []).map((item, i) => (
-          <div key={i} style={{ padding: '14px 16px', borderRadius: 12,
-            background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.18)' }}>
-            <p style={{ fontSize: 13, fontWeight: 800, color: '#10B981', marginBottom: 5 }}>{item.term}</p>
-            <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.55 }}>{item.definition}</p>
-          </div>
-        ))}
+        {lang && <span style={{ fontSize:10, color:'#888', fontFamily:'monospace' }}>{lang}</span>}
+        <button onClick={() => { navigator.clipboard.writeText(code); setCopied(true); setTimeout(()=>setCopied(false),2000); }}
+          style={{ display:'flex', alignItems:'center', gap:4, padding:'3px 10px', borderRadius:6,
+            background:'rgba(255,255,255,0.08)', border:'none', cursor:'pointer',
+            color: copied ? '#6BCB77' : '#9CA3AF', fontSize:11, fontWeight:600 }}>
+          {copied ? <Check size={11}/> : <Copy size={11}/>} {copied ? 'Copied' : 'Copy'}
+        </button>
       </div>
-    </div>
-  );
-}
-
-// ── Concepts ───────────────────────────────────────────────────────────────
-function ConceptsSection({ section }) {
-  return (
-    <div style={{ padding: '22px 24px', borderRadius: 16, background: 'var(--bg-card)',
-      border: '1px solid rgba(99,102,241,0.2)' }}>
-      <SectionHeader emoji="💡" title={section.title} color="#6366F1" />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {(section.items || []).map((item, i) => (
-          <div key={i} style={{ padding: '16px 18px', borderRadius: 13,
-            background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(99,102,241,0.15)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <span style={{ fontSize: 11, fontWeight: 800, color: '#6366F1' }}>{i + 1}</span>
-              </div>
-              <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{item.name}</p>
-            </div>
-            <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: item.example ? 8 : 0 }}>
-              {item.explanation}
-            </p>
-            {item.example && (
-              <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(249,115,22,0.07)',
-                border: '1px solid rgba(249,115,22,0.2)', fontSize: 12, color: '#F59E0B' }}>
-                🧪 {item.example}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── Flowchart ──────────────────────────────────────────────────────────────
-function FlowchartSection({ section }) {
-  return (
-    <div style={{ padding: '22px 24px', borderRadius: 16, background: 'var(--bg-card)',
-      border: '1px solid rgba(6,182,212,0.2)' }}>
-      <SectionHeader emoji="🔄" title={section.title} color="#06B6D4" />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-        {(section.steps || []).map((step, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 0 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 48, flexShrink: 0 }}>
-              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#06B6D415',
-                border: '2px solid #06B6D460', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 14, fontWeight: 800, color: '#06B6D4', zIndex: 1 }}>
-                {step.step || i + 1}
-              </div>
-              {i < (section.steps.length - 1) && (
-                <div style={{ width: 2, flex: 1, minHeight: 24, background: '#06B6D425', margin: '2px 0' }} />
-              )}
-            </div>
-            <div style={{ padding: '6px 0 20px 12px', flex: 1 }}>
-              <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 3 }}>{step.label}</p>
-              {step.description && (
-                <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.55 }}>{step.description}</p>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── Comparison Table ───────────────────────────────────────────────────────
-function ComparisonSection({ section }) {
-  return (
-    <div style={{ padding: '22px 24px', borderRadius: 16, background: 'var(--bg-card)',
-      border: '1px solid rgba(139,92,246,0.2)' }}>
-      <SectionHeader emoji="⚖️" title={section.title} color="#8B5CF6" />
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          {section.headers?.length > 0 && (
-            <thead>
-              <tr>
-                {section.headers.map((h, i) => (
-                  <th key={i} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700,
-                    color: '#8B5CF6', background: 'rgba(139,92,246,0.08)',
-                    borderBottom: '2px solid rgba(139,92,246,0.2)',
-                    borderRight: i < section.headers.length - 1 ? '1px solid var(--border-color)' : 'none',
-                    borderRadius: i === 0 ? '8px 0 0 0' : i === section.headers.length - 1 ? '0 8px 0 0' : 0 }}>
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-          )}
-          <tbody>
-            {(section.rows || []).map((row, ri) => (
-              <tr key={ri} style={{ background: ri % 2 === 0 ? 'transparent' : 'var(--bg-tertiary)' }}>
-                {(Array.isArray(row) ? row : [row]).map((cell, ci) => (
-                  <td key={ci} style={{ padding: '10px 14px', color: ci === 0 ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    fontWeight: ci === 0 ? 600 : 400,
-                    borderBottom: '1px solid var(--border-color)',
-                    borderRight: ci < (Array.isArray(row) ? row.length : 1) - 1 ? '1px solid var(--border-color)' : 'none' }}>
-                    {cell}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-// ── Examples ───────────────────────────────────────────────────────────────
-function CodeBlock({ code }) {
-  const [copied, setCopied] = useState(false);
-  if (!code) return null;
-  return (
-    <div style={{ position: 'relative', marginTop: 10 }}>
-      <button onClick={() => { navigator.clipboard.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-        style={{ position: 'absolute', top: 8, right: 8, padding: '4px 10px', borderRadius: 6,
-          background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)',
-          color: copied ? '#10B981' : '#9CA3AF', fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
-        {copied ? <Check size={11} /> : <Copy size={11} />} {copied ? 'Copied' : 'Copy'}
-      </button>
-      <pre style={{ padding: '14px 16px', borderRadius: 10, background: '#0D1117',
-        color: '#E6EDF3', fontSize: 12.5, lineHeight: 1.7, overflowX: 'auto',
-        fontFamily: "'JetBrains Mono','Fira Code','Consolas',monospace", margin: 0 }}>
-        <code>{code}</code>
+      <pre style={{ padding:'16px', background:'#0D1117', color:'#E6EDF3',
+        fontSize:13, lineHeight:1.7, overflowX:'auto', margin:0,
+        fontFamily:"'JetBrains Mono','Fira Code',Consolas,monospace" }}>
+        <code>{code.trim()}</code>
       </pre>
     </div>
   );
 }
 
-function ExamplesSection({ section }) {
+// ── Overview Section ───────────────────────────────────────────────────────
+function OverviewSection({ section, idx }) {
+  const cfg = SEC.overview;
   return (
-    <div style={{ padding: '22px 24px', borderRadius: 16, background: 'var(--bg-card)',
-      border: '1px solid rgba(249,115,22,0.2)' }}>
-      <SectionHeader emoji="🧪" title={section.title} color="#F59E0B" />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {(section.items || []).map((item, i) => (
-          <div key={i} style={{ padding: '16px 18px', borderRadius: 13,
-            background: 'rgba(249,115,22,0.05)', border: '1px solid rgba(249,115,22,0.15)' }}>
-            <p style={{ fontSize: 14, fontWeight: 700, color: '#F59E0B', marginBottom: 6 }}>
-              {i + 1}. {item.title}
-            </p>
-            <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: item.code ? 4 : 0 }}>
-              {item.description}
-            </p>
-            {item.code && <CodeBlock code={item.code} />}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── Tips & Warnings ────────────────────────────────────────────────────────
-function TipsSection({ section }) {
-  const tipConfig = {
-    tip:       { emoji: '💡', color: '#F59E0B', bg: 'rgba(245,158,11,0.07)',  border: 'rgba(245,158,11,0.2)' },
-    warning:   { emoji: '⚠️', color: '#F43F5E', bg: 'rgba(244,63,94,0.07)',   border: 'rgba(244,63,94,0.2)' },
-    important: { emoji: '📌', color: '#6366F1', bg: 'rgba(99,102,241,0.07)',  border: 'rgba(99,102,241,0.2)' },
-  };
-  return (
-    <div style={{ padding: '22px 24px', borderRadius: 16, background: 'var(--bg-card)',
-      border: '1px solid rgba(245,158,11,0.2)' }}>
-      <SectionHeader emoji="⚠️" title={section.title} color="#F59E0B" />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {(section.tips || []).map((tip, i) => {
-          const cfg = tipConfig[tip.type] || tipConfig.tip;
-          return (
-            <div key={i} style={{ padding: '12px 16px', borderRadius: 10,
-              background: cfg.bg, border: `1px solid ${cfg.border}`,
-              display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-              <span style={{ fontSize: 16, flexShrink: 0 }}>{cfg.emoji}</span>
-              <p style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.55 }}>{tip.text}</p>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ── Memory Tricks ──────────────────────────────────────────────────────────
-function MemorySection({ section }) {
-  return (
-    <div style={{ padding: '22px 24px', borderRadius: 16, background: 'var(--bg-card)',
-      border: '1px solid rgba(236,72,153,0.2)' }}>
-      <SectionHeader emoji="🧠" title={section.title} color="#EC4899" />
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(240px,1fr))', gap: 10 }}>
-        {(section.tricks || []).map((trick, i) => (
-          <div key={i} style={{ padding: '14px 16px', borderRadius: 12,
-            background: 'rgba(236,72,153,0.06)', border: '1px solid rgba(236,72,153,0.18)',
-            display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-            <span style={{ fontSize: 18, flexShrink: 0 }}>✨</span>
-            <p style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.55 }}>{trick}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── Quiz Section ───────────────────────────────────────────────────────────
-function QuizSection({ section }) {
-  const [answers,  setAnswers]  = useState({});
-  const [revealed, setRevealed] = useState({});
-
-  const select = (qi, opt) => {
-    if (revealed[qi]) return;
-    setAnswers(p => ({ ...p, [qi]: opt }));
-  };
-  const reveal = (qi) => setRevealed(p => ({ ...p, [qi]: true }));
-
-  return (
-    <div style={{ padding: '22px 24px', borderRadius: 16, background: 'var(--bg-card)',
-      border: '1px solid rgba(99,102,241,0.2)' }}>
-      <SectionHeader emoji="❓" title={section.title} color="#6366F1" />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-        {(section.questions || []).map((q, qi) => {
-          const chosen = answers[qi];
-          const isRevealed = revealed[qi];
-          const isCorrect = chosen && chosen.startsWith(q.answer);
-          return (
-            <div key={qi} style={{ padding: '16px 18px', borderRadius: 13, background: 'var(--bg-secondary)',
-              border: `1px solid ${isRevealed ? (isCorrect ? 'rgba(16,185,129,0.3)' : 'rgba(244,63,94,0.3)') : 'var(--border-color)'}` }}>
-              <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12 }}>
-                Q{qi + 1}. {q.q}
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 12 }}>
-                {(q.options || []).map((opt, oi) => {
-                  const letter = opt.charAt(0);
-                  let bg = 'var(--bg-tertiary)', border = 'var(--border-color)', color = 'var(--text-primary)';
-                  if (chosen === opt) { bg = 'rgba(99,102,241,0.12)'; border = '#6366F150'; color = 'var(--color-primary-light)'; }
-                  if (isRevealed && opt.startsWith(q.answer)) { bg = 'rgba(16,185,129,0.12)'; border = 'rgba(16,185,129,0.4)'; color = '#10B981'; }
-                  if (isRevealed && chosen === opt && !opt.startsWith(q.answer)) { bg = 'rgba(244,63,94,0.1)'; border = 'rgba(244,63,94,0.35)'; color = '#F43F5E'; }
-                  return (
-                    <button key={oi} onClick={() => select(qi, opt)}
-                      style={{ padding: '9px 14px', borderRadius: 9, border: `1px solid ${border}`,
-                        background: bg, color, fontSize: 13, textAlign: 'left', cursor: isRevealed ? 'default' : 'pointer',
-                        fontFamily: 'inherit', transition: 'all 0.15s' }}>
-                      {opt}
-                    </button>
-                  );
-                })}
+    <motion.div id={`cn-${idx}`} initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:idx*0.05}}>
+      <SectionBanner type="overview" title={section.title} idx={idx} />
+      <div style={{ padding:'18px 22px', borderRadius:14,
+        background:cfg.bg, border:`1.5px solid ${cfg.border}`, marginBottom:4 }}>
+        {section.content && (
+          <p style={{ fontSize:14, color:'var(--text-secondary)', lineHeight:1.75,
+            marginBottom: section.keyPoints?.length ? 14 : 0 }}>{section.content}</p>
+        )}
+        {section.keyPoints?.length > 0 && (
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {section.keyPoints.map((pt, i) => (
+              <div key={i} style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
+                <span style={{ fontSize:16, flexShrink:0, marginTop:1 }}>⭐</span>
+                <span style={{ fontSize:13, color:'var(--text-primary)', lineHeight:1.6, fontWeight:500 }}>{pt}</span>
               </div>
-              {chosen && !isRevealed && (
-                <button onClick={() => reveal(qi)}
-                  style={{ padding: '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                    background: 'var(--gradient-primary)', color: 'white', fontSize: 12, fontWeight: 700 }}>
-                  Check Answer
-                </button>
-              )}
-              {isRevealed && q.explanation && (
-                <div style={{ padding: '10px 12px', borderRadius: 8, background: 'rgba(99,102,241,0.07)',
-                  border: '1px solid rgba(99,102,241,0.18)', fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                  💡 {q.explanation}
+            ))}
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Definitions Section (PDF green cards) ─────────────────────────────────
+function DefinitionsSection({ section, idx }) {
+  const cfg = SEC.definitions;
+  return (
+    <motion.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:idx*0.05}}>
+      <SectionBanner type="definitions" title={section.title} idx={idx} />
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(250px,1fr))', gap:12 }}>
+        {(section.items||[]).map((item, i) => (
+          <div key={i} style={{ padding:'16px 18px', borderRadius:14,
+            background:cfg.bg, border:`1.5px solid ${cfg.border}`,
+            position:'relative', overflow:'hidden' }}>
+            <div style={{ position:'absolute', top:0, left:0, width:4, height:'100%', background:cfg.accent }} />
+            <p style={{ fontSize:13, fontWeight:800, color:cfg.accent, marginBottom:6, paddingLeft:8 }}>
+              {item.term}
+            </p>
+            <p style={{ fontSize:12, color:'var(--text-secondary)', lineHeight:1.6, paddingLeft:8 }}>
+              {item.definition}
+            </p>
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Concepts Section (numbered purple cards) ──────────────────────────────
+function ConceptsSection({ section, idx }) {
+  const cfg = SEC.concepts;
+  return (
+    <motion.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:idx*0.05}}>
+      <SectionBanner type="concepts" title={section.title} idx={idx} />
+      <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+        {(section.items||[]).map((item, i) => (
+          <div key={i} style={{ padding:'18px 20px', borderRadius:14,
+            background:'var(--bg-card)', border:`1.5px solid ${cfg.border}`,
+            display:'flex', gap:14 }}>
+            <div style={{ width:32, height:32, borderRadius:10, background:cfg.bg,
+              border:`2px solid ${cfg.border}`, display:'flex', alignItems:'center',
+              justifyContent:'center', fontSize:14, fontWeight:900, color:cfg.accent, flexShrink:0 }}>
+              {i+1}
+            </div>
+            <div style={{ flex:1 }}>
+              <p style={{ fontSize:14, fontWeight:800, color:cfg.accent, marginBottom:6 }}>{item.name}</p>
+              <p style={{ fontSize:13, color:'var(--text-secondary)', lineHeight:1.6,
+                marginBottom: item.example ? 8 : 0 }}>{item.explanation}</p>
+              {item.example && (
+                <div style={{ padding:'8px 12px', borderRadius:9,
+                  background:'rgba(249,115,22,0.07)', border:'1px solid rgba(249,115,22,0.2)',
+                  fontSize:12, color:'#F97316', fontStyle:'italic' }}>
+                  🧪 Example: {item.example}
                 </div>
               )}
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
-    </div>
+    </motion.div>
   );
 }
 
-// ── Summary ────────────────────────────────────────────────────────────────
-function SummarySection({ section }) {
+// ── Flowchart Section (PDF process diagram style) ─────────────────────────
+function FlowchartSection({ section, idx }) {
+  const cfg = SEC.flowchart;
   return (
-    <div style={{ padding: '22px 24px', borderRadius: 16,
-      background: 'linear-gradient(135deg, rgba(20,184,166,0.08), rgba(99,102,241,0.06))',
-      border: '1px solid rgba(20,184,166,0.25)' }}>
-      <SectionHeader emoji="✅" title={section.title} color="#14B8A6" />
-      {section.points?.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: section.examTips?.length ? 16 : 0 }}>
-          {section.points.map((pt, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-              <Star size={14} color="#14B8A6" style={{ flexShrink: 0, marginTop: 2 }} />
-              <span style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.55 }}>{pt}</span>
+    <motion.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:idx*0.05}}>
+      <SectionBanner type="flowchart" title={section.title} idx={idx} />
+      <div style={{ padding:'20px', borderRadius:14, background:cfg.bg, border:`1.5px solid ${cfg.border}` }}>
+        {(section.steps||[]).map((step, i) => (
+          <div key={i} style={{ display:'flex', alignItems:'stretch', gap:0 }}>
+            <div style={{ display:'flex', flexDirection:'column', alignItems:'center', width:52, flexShrink:0 }}>
+              <div style={{ width:38, height:38, borderRadius:'50%', background:cfg.accent,
+                display:'flex', alignItems:'center', justifyContent:'center',
+                fontSize:15, fontWeight:900, color:'white', flexShrink:0, zIndex:1 }}>
+                {step.step || i+1}
+              </div>
+              {i < (section.steps.length-1) && (
+                <div style={{ width:2, flex:1, minHeight:20, background:`${cfg.accent}30`, margin:'2px 0' }} />
+              )}
             </div>
-          ))}
-        </div>
-      )}
-      {section.examTips?.length > 0 && (
-        <div style={{ marginTop: 14, padding: '14px 16px', borderRadius: 12,
-          background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}>
-          <p style={{ fontSize: 11, fontWeight: 700, color: '#F59E0B', textTransform: 'uppercase',
-            letterSpacing: '0.07em', marginBottom: 8 }}>🎯 Exam Tips</p>
-          {section.examTips.map((tip, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: i < section.examTips.length - 1 ? 6 : 0 }}>
-              <ArrowRight size={13} color="#F59E0B" style={{ flexShrink: 0, marginTop: 2 }} />
-              <span style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{tip}</span>
+            <div style={{ paddingLeft:14, paddingBottom: i < section.steps.length-1 ? 20 : 0, flex:1 }}>
+              <p style={{ fontSize:14, fontWeight:700, color:'var(--text-primary)', marginBottom:3 }}>
+                {step.label}
+              </p>
+              {step.description && (
+                <p style={{ fontSize:12, color:'var(--text-secondary)', lineHeight:1.55 }}>
+                  {step.description}
+                </p>
+              )}
             </div>
-          ))}
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Comparison Table (PDF table style) ────────────────────────────────────
+function ComparisonSection({ section, idx }) {
+  const cfg = SEC.comparison;
+  return (
+    <motion.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:idx*0.05}}>
+      <SectionBanner type="comparison" title={section.title} idx={idx} />
+      <div style={{ borderRadius:14, overflow:'hidden', border:`1.5px solid ${cfg.border}` }}>
+        <div style={{ overflowX:'auto' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+            {section.headers?.length > 0 && (
+              <thead>
+                <tr>
+                  {section.headers.map((h, i) => (
+                    <th key={i} style={{ padding:'12px 16px', textAlign:'left', fontWeight:800,
+                      color:cfg.accent, background:cfg.bg,
+                      borderBottom:`2px solid ${cfg.border}`,
+                      borderRight: i < section.headers.length-1 ? `1px solid ${cfg.border}` : 'none' }}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+            )}
+            <tbody>
+              {(section.rows||[]).map((row, ri) => (
+                <tr key={ri} style={{ background: ri%2===0 ? 'var(--bg-card)' : cfg.bg }}>
+                  {(Array.isArray(row)?row:[row]).map((cell, ci) => (
+                    <td key={ci} style={{ padding:'11px 16px',
+                      color: ci===0 ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      fontWeight: ci===0 ? 600 : 400,
+                      borderBottom:`1px solid ${cfg.border}`,
+                      borderRight: ci < (Array.isArray(row)?row.length:1)-1 ? `1px solid ${cfg.border}` : 'none' }}>
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      )}
-    </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Examples Section (PDF orange example boxes) ───────────────────────────
+function ExamplesSection({ section, idx }) {
+  const cfg = SEC.examples;
+  return (
+    <motion.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:idx*0.05}}>
+      <SectionBanner type="examples" title={section.title} idx={idx} />
+      <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+        {(section.items||[]).map((item, i) => (
+          <div key={i} style={{ borderRadius:14, overflow:'hidden',
+            border:`1.5px solid ${cfg.border}` }}>
+            <div style={{ padding:'12px 16px', background:cfg.bg,
+              borderBottom: (item.description || item.code) ? `1px solid ${cfg.border}` : 'none',
+              display:'flex', alignItems:'center', gap:10 }}>
+              <div style={{ width:28, height:28, borderRadius:8, background:cfg.accent,
+                display:'flex', alignItems:'center', justifyContent:'center',
+                fontSize:13, fontWeight:900, color:'white', flexShrink:0 }}>
+                {i+1}
+              </div>
+              <p style={{ fontSize:14, fontWeight:800, color:cfg.accent }}>{item.title}</p>
+            </div>
+            {item.description && (
+              <div style={{ padding:'12px 16px', background:'var(--bg-card)' }}>
+                <p style={{ fontSize:13, color:'var(--text-secondary)', lineHeight:1.65 }}>
+                  {item.description}
+                </p>
+                {item.code && <CodeBlock code={item.code} lang="python" />}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Tips Section (PDF important note / warning boxes) ─────────────────────
+function TipsSection({ section, idx }) {
+  const TIP_CFG = {
+    tip:       { ...C.yellow, icon:'💡', label:'Tip' },
+    warning:   { ...C.red,    icon:'⚠️', label:'Warning' },
+    important: { ...C.blue,   icon:'📌', label:'Important' },
+  };
+  return (
+    <motion.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:idx*0.05}}>
+      <SectionBanner type="tips" title={section.title} idx={idx} />
+      <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+        {(section.tips||[]).map((tip, i) => {
+          const tc = TIP_CFG[tip.type] || TIP_CFG.tip;
+          return (
+            <div key={i} style={{ display:'flex', gap:12, padding:'14px 18px', borderRadius:12,
+              background:tc.bg, border:`1.5px solid ${tc.border}` }}>
+              <span style={{ fontSize:20, flexShrink:0 }}>{tc.icon}</span>
+              <div>
+                <span style={{ fontSize:11, fontWeight:800, color:tc.accent,
+                  textTransform:'uppercase', letterSpacing:'0.07em', marginRight:6 }}>{tc.label}:</span>
+                <span style={{ fontSize:13, color:'var(--text-primary)', lineHeight:1.6 }}>{tip.text}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Memory Tricks (PDF pink mnemonic style) ───────────────────────────────
+function MemorySection({ section, idx }) {
+  const cfg = SEC.memory;
+  return (
+    <motion.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:idx*0.05}}>
+      <SectionBanner type="memory" title={section.title} idx={idx} />
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))', gap:10 }}>
+        {(section.tricks||[]).map((trick, i) => (
+          <div key={i} style={{ padding:'14px 16px', borderRadius:13,
+            background:cfg.bg, border:`1.5px solid ${cfg.border}`,
+            display:'flex', alignItems:'flex-start', gap:10 }}>
+            <span style={{ fontSize:20, flexShrink:0 }}>✨</span>
+            <p style={{ fontSize:13, color:'var(--text-primary)', lineHeight:1.55 }}>{trick}</p>
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Quiz Section (interactive MCQ, PDF question style) ────────────────────
+function QuizSection({ section, idx }) {
+  const [answers,  setAnswers]  = useState({});
+  const [revealed, setRevealed] = useState({});
+  const cfg = SEC.quiz;
+  return (
+    <motion.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:idx*0.05}}>
+      <SectionBanner type="quiz" title={section.title} idx={idx} />
+      <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+        {(section.questions||[]).map((q, qi) => {
+          const chosen = answers[qi];
+          const done = revealed[qi];
+          const correct = chosen && chosen.charAt(0) === q.answer?.charAt(0);
+          return (
+            <div key={qi} style={{ borderRadius:14, overflow:'hidden',
+              border:`1.5px solid ${done ? (correct ? 'rgba(16,185,129,0.4)' : 'rgba(239,68,68,0.4)') : cfg.border}` }}>
+              <div style={{ padding:'14px 18px', background:cfg.bg,
+                borderBottom:`1px solid ${cfg.border}` }}>
+                <p style={{ fontSize:14, fontWeight:700, color:'var(--text-primary)' }}>
+                  <span style={{ color:cfg.accent, marginRight:8 }}>Q{qi+1}.</span>{q.q}
+                </p>
+              </div>
+              <div style={{ padding:'14px 18px', background:'var(--bg-card)',
+                display:'flex', flexDirection:'column', gap:8 }}>
+                {(q.options||[]).map((opt, oi) => {
+                  const isChosen = chosen === opt;
+                  const isCorrect = done && opt.charAt(0) === q.answer?.charAt(0);
+                  const isWrong = done && isChosen && !isCorrect;
+                  return (
+                    <button key={oi} onClick={() => !done && setAnswers(p=>({...p,[qi]:opt}))}
+                      style={{ padding:'10px 14px', borderRadius:10, border:'none',
+                        cursor: done ? 'default' : 'pointer', textAlign:'left', fontFamily:'inherit',
+                        fontSize:13, lineHeight:1.5, transition:'all 0.15s',
+                        background: isCorrect ? 'rgba(16,185,129,0.12)' : isWrong ? 'rgba(239,68,68,0.1)'
+                          : isChosen ? 'rgba(99,102,241,0.1)' : 'var(--bg-tertiary)',
+                        color: isCorrect ? '#10B981' : isWrong ? '#EF4444' : isChosen ? 'var(--color-primary-light)' : 'var(--text-primary)',
+                        outline: isCorrect ? '1.5px solid rgba(16,185,129,0.4)' : isWrong ? '1.5px solid rgba(239,68,68,0.3)'
+                          : isChosen ? '1.5px solid rgba(99,102,241,0.3)' : '1px solid var(--border-color)' }}>
+                      {isCorrect && '✅ '}{isWrong && '❌ '}{opt}
+                    </button>
+                  );
+                })}
+                {chosen && !done && (
+                  <button onClick={() => setRevealed(p=>({...p,[qi]:true}))}
+                    style={{ alignSelf:'flex-start', padding:'7px 18px', borderRadius:10, border:'none',
+                      cursor:'pointer', background:'var(--gradient-primary)', color:'white',
+                      fontSize:12, fontWeight:700, marginTop:4 }}>
+                    Check Answer
+                  </button>
+                )}
+                {done && q.explanation && (
+                  <div style={{ padding:'10px 12px', borderRadius:9, marginTop:4,
+                    background:'rgba(99,102,241,0.06)', border:'1px solid rgba(99,102,241,0.18)' }}>
+                    <span style={{ fontSize:11, fontWeight:700, color:'var(--color-primary-light)' }}>💡 </span>
+                    <span style={{ fontSize:12, color:'var(--text-secondary)' }}>{q.explanation}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Summary Section (PDF star takeaways + exam tips) ──────────────────────
+function SummarySection({ section, idx }) {
+  const cfg = SEC.summary;
+  return (
+    <motion.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:idx*0.05}}>
+      <SectionBanner type="summary" title={section.title} idx={idx} />
+      <div style={{ borderRadius:14, background:cfg.bg, border:`1.5px solid ${cfg.border}`,
+        overflow:'hidden' }}>
+        {section.points?.length > 0 && (
+          <div style={{ padding:'18px 20px', borderBottom: section.examTips?.length ? `1px solid ${cfg.border}` : 'none' }}>
+            <p style={{ fontSize:11, fontWeight:800, color:cfg.accent, textTransform:'uppercase',
+              letterSpacing:'0.07em', marginBottom:12 }}>★ Key Takeaways</p>
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {section.points.map((pt, i) => (
+                <div key={i} style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
+                  <Star size={14} color={cfg.accent} style={{ flexShrink:0, marginTop:2 }} />
+                  <span style={{ fontSize:13, color:'var(--text-primary)', lineHeight:1.6, fontWeight:500 }}>{pt}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {section.examTips?.length > 0 && (
+          <div style={{ padding:'16px 20px', background:'rgba(245,158,11,0.06)' }}>
+            <p style={{ fontSize:11, fontWeight:800, color:'#F59E0B', textTransform:'uppercase',
+              letterSpacing:'0.07em', marginBottom:10 }}>🎯 Exam Tips</p>
+            {section.examTips.map((tip, i) => (
+              <div key={i} style={{ display:'flex', alignItems:'flex-start', gap:8, marginBottom:6 }}>
+                <ArrowRight size={13} color="#F59E0B" style={{ flexShrink:0, marginTop:2 }} />
+                <span style={{ fontSize:12, color:'var(--text-secondary)', lineHeight:1.5 }}>{tip}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </motion.div>
   );
 }
 
 // ── Section Router ─────────────────────────────────────────────────────────
-function renderSection(section, i) {
-  switch (section.type) {
-    case 'overview':    return <OverviewSection    key={i} section={section} />;
-    case 'definitions': return <DefinitionsSection key={i} section={section} />;
-    case 'concepts':    return <ConceptsSection    key={i} section={section} />;
-    case 'flowchart':   return <FlowchartSection   key={i} section={section} />;
-    case 'comparison':  return <ComparisonSection  key={i} section={section} />;
-    case 'examples':    return <ExamplesSection    key={i} section={section} />;
-    case 'tips':        return <TipsSection        key={i} section={section} />;
-    case 'memory':      return <MemorySection      key={i} section={section} />;
-    case 'quiz':        return <QuizSection        key={i} section={section} />;
-    case 'summary':     return <SummarySection     key={i} section={section} />;
+function renderSection(s, i) {
+  switch (s.type) {
+    case 'overview':    return <OverviewSection    key={i} section={s} idx={i} />;
+    case 'definitions': return <DefinitionsSection key={i} section={s} idx={i} />;
+    case 'concepts':    return <ConceptsSection    key={i} section={s} idx={i} />;
+    case 'flowchart':   return <FlowchartSection   key={i} section={s} idx={i} />;
+    case 'comparison':  return <ComparisonSection  key={i} section={s} idx={i} />;
+    case 'examples':    return <ExamplesSection    key={i} section={s} idx={i} />;
+    case 'tips':        return <TipsSection        key={i} section={s} idx={i} />;
+    case 'memory':      return <MemorySection      key={i} section={s} idx={i} />;
+    case 'quiz':        return <QuizSection        key={i} section={s} idx={i} />;
+    case 'summary':     return <SummarySection     key={i} section={s} idx={i} />;
     default: return (
-      <div key={i} style={{ padding: '20px 22px', borderRadius: 14, background: 'var(--bg-card)',
-        border: '1px solid var(--border-color)' }}>
-        <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10 }}>{section.title}</h2>
-        {section.content && <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.65 }}>{section.content}</p>}
-      </div>
+      <motion.div key={i} initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:i*0.05}}>
+        <SectionBanner type="overview" title={s.title} idx={i} />
+        <div style={{ padding:'18px 20px', borderRadius:14, background:'var(--bg-card)',
+          border:'1px solid var(--border-color)' }}>
+          {s.content && <p style={{ fontSize:13, color:'var(--text-secondary)', lineHeight:1.7 }}>{s.content}</p>}
+        </div>
+      </motion.div>
     );
   }
 }
 
 // ── Main Renderer ──────────────────────────────────────────────────────────
-export default function CreativeNoteRenderer({ notes, onFollowUp }) {
+export default function CreativeNoteRenderer({ notes }) {
   if (!notes) return null;
   const sections = notes.sections || [];
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-      <CoverCard notes={notes} />
-      {sections.length > 0 && <TableOfContents sections={sections} />}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {sections.map((section, i) => (
-          <SectionCard key={i} id={i} delay={i}>
-            {renderSection(section, i)}
-          </SectionCard>
-        ))}
+    <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+      <NoteHeader notes={notes} />
+      {sections.length > 0 && <TOC sections={sections} />}
+      {sections.map((s, i) => renderSection(s, i))}
+      {/* Footer */}
+      <div style={{ textAlign:'center', padding:'20px', opacity:0.5 }}>
+        <p style={{ fontSize:12, color:'var(--text-muted)' }}>
+          ✨ Generated by NoteNova AI · Creative Notes
+        </p>
       </div>
     </div>
   );
