@@ -19,7 +19,7 @@ const FEATURES = [
   { icon: '🚀', label: 'All Future Features', desc: 'Early access to every new feature' },
 ];
 
-const UPI_ID = 'rishabvishwakarma7@oksbi';
+const UPI_ID = 'rishuxv@ybl';
 const MERCHANT = 'Rishab Vishwakarma';
 const AMOUNT = 99;
 
