@@ -2,14 +2,14 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 import {
-  Sparkles, Loader2, Download, Save, Check, BookOpen,
-  Wand2, ChevronDown, RefreshCw, FileText, Layers, Brain,
-  Zap, Target, GraduationCap,
+  Sparkles, Loader2, Download, Save, Check, Crown,
+  Wand2, ArrowRight,
 } from 'lucide-react';
+import Link from 'next/link';
 import api from '@/services/api';
 import { useToast } from '@/components/ui/Toast';
 import { marked } from 'marked';
@@ -27,6 +27,7 @@ export default function CreativeNotesPage() {
   const { toast } = useToast();
   const contentRef = useRef(null);
 
+  const [isPremium, setIsPremium] = useState(null);
   const [topic,   setTopic]   = useState(searchParams?.get('topic') || '');
   const [subject, setSubject] = useState(searchParams?.get('subject') || '');
   const [level,   setLevel]   = useState('intermediate');
@@ -34,6 +35,48 @@ export default function CreativeNotesPage() {
   const [loading, setLoading] = useState(false);
   const [saving,  setSaving]  = useState(false);
   const [saved,   setSaved]   = useState(false);
+
+  useEffect(() => {
+    api.get('/premium/status').then(r => {
+      setIsPremium(r.data?.isPremium || false);
+    }).catch(() => setIsPremium(false));
+  }, []);
+
+  // Show paywall if not premium
+  if (isPremium === false) return (
+    <div style={{ padding:'40px 20px', maxWidth:540, margin:'0 auto', textAlign:'center' }}>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <div style={{ width:80, height:80, borderRadius:24, background:'linear-gradient(135deg,#8B5CF6,#06B6D4)',
+        display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 20px',
+        boxShadow:'0 8px 32px rgba(139,92,246,0.4)' }}>
+        <Sparkles size={36} color="white" />
+      </div>
+      <div style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'4px 14px', borderRadius:20,
+        background:'rgba(245,158,11,0.12)', border:'1px solid rgba(245,158,11,0.3)', marginBottom:16 }}>
+        <Crown size={13} color="#F59E0B" />
+        <span style={{ fontSize:12, fontWeight:700, color:'#F59E0B' }}>PREMIUM FEATURE</span>
+      </div>
+      <h1 style={{ fontSize:22, fontWeight:800, color:'var(--text-primary)', marginBottom:10 }}>
+        Creative Notes is Premium
+      </h1>
+      <p style={{ fontSize:14, color:'var(--text-secondary)', lineHeight:1.7, marginBottom:28, maxWidth:400, margin:'0 auto 28px' }}>
+        Upgrade to NoteNova Premium (₹99 lifetime) to generate beautiful visual study booklets with cards, flowcharts, quizzes, memory tricks and more.
+      </p>
+      <Link href="/dashboard/premium" style={{ display:'inline-flex', alignItems:'center', gap:8,
+        padding:'14px 32px', borderRadius:14, textDecoration:'none', color:'white', fontWeight:800, fontSize:15,
+        background:'linear-gradient(135deg,#F59E0B,#FBBF24)', boxShadow:'0 6px 24px rgba(245,158,11,0.45)' }}>
+        <Crown size={18} /> Upgrade to Premium — ₹99
+      </Link>
+    </div>
+  );
+
+  // Loading premium check
+  if (isPremium === null) return (
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'60vh' }}>
+      <Loader2 size={28} color="#8B5CF6" style={{ animation:'spin 1s linear infinite' }} />
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
 
   const handleGenerate = useCallback(async () => {
     if (!topic.trim()) return;

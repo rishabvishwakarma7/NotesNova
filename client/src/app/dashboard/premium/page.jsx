@@ -11,6 +11,7 @@ import api from '@/services/api';
 import { useToast } from '@/components/ui/Toast';
 
 const FEATURES = [
+  { icon: '✨', label: 'Creative Notes', desc: 'AI-powered visual study booklets with cards & diagrams' },
   { icon: '🎯', label: 'Focus Lock', desc: 'Block apps & stay distraction-free while studying' },
   { icon: '♾️', label: 'Unlimited Sessions', desc: 'No daily limits on focus sessions' },
   { icon: '🧠', label: 'AI Focus Analytics', desc: 'Smart insights into your study patterns' },
