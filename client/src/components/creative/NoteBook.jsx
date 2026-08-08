@@ -117,56 +117,155 @@ function CodeBox({ code, lang='', output='' }) {
   );
 }
 
-// ── SVG Flowchart (real diagram with arrows) ───────────────────────────────
-function FlowChart({ steps }) {
+// ── Radial Spoke Flowchart (inspired by Process Flow Timeline image) ──────
+function FlowChart({ steps, title }) {
   if (!steps?.length) return null;
-  const W = 220, H = 60, GAP = 40, PAD = 20;
-  const total = steps.length;
-  const svgH = total * H + (total - 1) * GAP + PAD * 2;
-  const svgW = W + PAD * 2;
 
-  const colors = ['#3B82F6','#8B5CF6','#10B981','#F97316','#EC4899','#14B8A6','#EAB308','#EF4444'];
+  const COLORS = ['#F59E0B','#F97316','#3B82F6','#14B8A6','#8B5CF6','#EC4899','#10B981','#EF4444'];
+  const EMOJIS = ['💡','🎯','📡','🔑','⚙️','🚀','🔄','📋'];
+  const count = Math.min(steps.length, 8);
 
+  // For ≤4 steps use the radial spoke layout; for 5+ use enhanced linear
+  if (count <= 6) {
+    // Radial layout: center hub + spokes
+    const W = 560, H = 400, cx = W/2, cy = H/2, hubR = 52;
+    const spokeR = 155;
+    const angleStep = (2 * Math.PI) / count;
+
+    // Card dimensions
+    const CARD_W = 130, CARD_H = 72;
+
+    return (
+      <div style={{overflowX:'auto',padding:'8px 0'}}>
+        <div style={{minWidth:300,maxWidth:'100%',display:'flex',justifyContent:'center'}}>
+          <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}
+            style={{maxWidth:'100%',overflow:'visible'}}>
+            <defs>
+              {COLORS.slice(0,count).map((col,i)=>(
+                <radialGradient key={i} id={`rg${i}`} cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stopColor={col} stopOpacity="0.9"/>
+                  <stop offset="100%" stopColor={col} stopOpacity="0.6"/>
+                </radialGradient>
+              ))}
+            </defs>
+
+            {/* Spoke lines from hub to cards */}
+            {steps.slice(0,count).map((step,i)=>{
+              const angle = i * angleStep - Math.PI/2;
+              const nx = cx + spokeR * Math.cos(angle);
+              const ny = cy + spokeR * Math.sin(angle);
+              const col = COLORS[i % COLORS.length];
+              // Line from hub edge to card edge
+              const hx = cx + (hubR+4) * Math.cos(angle);
+              const hy = cy + (hubR+4) * Math.sin(angle);
+              const ex = nx - (CARD_W/2+2) * Math.cos(angle);
+              const ey = ny - (CARD_H/2+2) * Math.sin(angle);
+              return (
+                <motion.line key={i} x1={hx} y1={hy} x2={ex} y2={ey}
+                  stroke={col} strokeWidth="2" strokeDasharray="5,3" opacity="0.6"
+                  initial={{pathLength:0,opacity:0}} animate={{pathLength:1,opacity:0.6}}
+                  transition={{delay:0.2+i*0.1,duration:0.5}}/>
+              );
+            })}
+
+            {/* Spoke cards */}
+            {steps.slice(0,count).map((step,i)=>{
+              const angle = i * angleStep - Math.PI/2;
+              const nx = cx + spokeR * Math.cos(angle);
+              const ny = cy + spokeR * Math.sin(angle);
+              const col = COLORS[i % COLORS.length];
+              const emoji = EMOJIS[i % EMOJIS.length];
+              // Is it on the left half?
+              const isLeft = Math.cos(angle) < -0.1;
+              // Icon circle position — on the inner side of the card
+              const iconX = isLeft ? nx + CARD_W/2 - 22 : nx - CARD_W/2 + 22;
+              const textX  = isLeft ? nx - CARD_W/2 + 8  : nx + CARD_W/2 - 8 - 44;
+
+              return (
+                <motion.g key={i}
+                  initial={{opacity:0,scale:0.7}} animate={{opacity:1,scale:1}}
+                  transition={{delay:0.1+i*0.08,duration:0.35,type:'spring',bounce:0.3}}>
+                  {/* Card background — teardrop/pill shape */}
+                  <rect x={nx - CARD_W/2} y={ny - CARD_H/2}
+                    width={CARD_W} height={CARD_H} rx="18" ry="18"
+                    fill={col+'15'} stroke={col} strokeWidth="2"/>
+                  {/* Icon circle */}
+                  <circle cx={iconX} cy={ny} r="22" fill={`url(#rg${i})`}/>
+                  <text x={iconX} y={ny+7} textAnchor="middle" fontSize="18">{emoji}</text>
+                  {/* Label */}
+                  <text x={isLeft ? nx - CARD_W/2 + 16 : nx - CARD_W/2 + 16}
+                    y={ny - 8} fill={col} fontSize="11" fontWeight="800"
+                    style={{textTransform:'uppercase',letterSpacing:'0.06em'}}>
+                    {step.label?.length > 14 ? step.label.slice(0,14)+'…' : step.label}
+                  </text>
+                  {step.description && (
+                    <foreignObject x={nx - CARD_W/2 + 10} y={ny + 2} width={CARD_W-50} height={28}>
+                      <div xmlns="http://www.w3.org/1999/xhtml"
+                        style={{fontSize:9,color:'#94A3B8',lineHeight:1.3,wordBreak:'break-word'}}>
+                        {step.description.length > 40 ? step.description.slice(0,40)+'…' : step.description}
+                      </div>
+                    </foreignObject>
+                  )}
+                </motion.g>
+              );
+            })}
+
+            {/* Center hub */}
+            <motion.g initial={{scale:0,opacity:0}} animate={{scale:1,opacity:1}}
+              transition={{duration:0.4,type:'spring',bounce:0.4}}>
+              <circle cx={cx} cy={cy} r={hubR+8} fill="rgba(99,102,241,0.08)" stroke="rgba(99,102,241,0.2)" strokeWidth="1.5" strokeDasharray="4,3"/>
+              <circle cx={cx} cy={cy} r={hubR} fill="var(--bg-secondary)" stroke="#6366F1" strokeWidth="2.5"/>
+              <text x={cx} y={cy-8} textAnchor="middle" fill="#6366F1" fontSize="11" fontWeight="800">Process</text>
+              <text x={cx} y={cy+6} textAnchor="middle" fill="#6366F1" fontSize="11" fontWeight="800">Flow</text>
+              {title && <text x={cx} y={cy+20} textAnchor="middle" fill="#94A3B8" fontSize="9">{title.length>12?title.slice(0,12)+'…':title}</text>}
+            </motion.g>
+          </svg>
+        </div>
+
+        {/* Step legend below */}
+        <div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:12,justifyContent:'center'}}>
+          {steps.slice(0,count).map((step,i)=>(
+            <div key={i} style={{display:'flex',alignItems:'center',gap:6,padding:'5px 12px',
+              borderRadius:20,background:`${COLORS[i%COLORS.length]}10`,
+              border:`1px solid ${COLORS[i%COLORS.length]}30`}}>
+              <div style={{width:8,height:8,borderRadius:'50%',background:COLORS[i%COLORS.length],flexShrink:0}}/>
+              <span style={{fontSize:11,fontWeight:700,color:COLORS[i%COLORS.length]}}>{step.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Linear fallback for 7+ steps (enhanced)
+  const colors = COLORS;
   return (
-    <div style={{display:'flex',justifyContent:'center',padding:'8px 0 0'}}>
-      <svg width={svgW} height={svgH} viewBox={`0 0 ${svgW} ${svgH}`}
-        style={{maxWidth:'100%',filter:'drop-shadow(0 4px 12px rgba(0,0,0,.15))'}}>
-        <defs>
-          <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-            <polygon points="0 0, 10 3.5, 0 7" fill="#6366F1"/>
-          </marker>
-        </defs>
-        {steps.map((step, i) => {
-          const y = PAD + i * (H + GAP);
-          const cx = PAD + W / 2;
-          const col = colors[i % colors.length];
-          const isLast = i === steps.length - 1;
-          return (
-            <g key={i}>
-              {/* Connector arrow */}
-              {!isLast && (
-                <line x1={cx} y1={y + H} x2={cx} y2={y + H + GAP}
-                  stroke="#6366F1" strokeWidth="2.5" strokeDasharray="5,3"
-                  markerEnd="url(#arrowhead)"/>
-              )}
-              {/* Box */}
-              <rect x={PAD} y={y} width={W} height={H} rx="14" ry="14"
-                fill={col + '18'} stroke={col} strokeWidth="2"/>
-              {/* Step number circle */}
-              <circle cx={PAD + 22} cy={y + H/2} r="14" fill={col}/>
-              <text x={PAD + 22} y={y + H/2 + 5} textAnchor="middle"
-                fill="white" fontSize="12" fontWeight="800">{i + 1}</text>
-              {/* Label */}
-              <text x={PAD + 46} y={y + H/2 - 6} fill={col} fontSize="13" fontWeight="800">{step.label}</text>
-              {step.description && (
-                <text x={PAD + 46} y={y + H/2 + 10} fill="#94A3B8" fontSize="11">{
-                  step.description.length > 28 ? step.description.slice(0, 28) + '…' : step.description
-                }</text>
-              )}
-            </g>
-          );
-        })}
-      </svg>
+    <div style={{display:'flex',flexDirection:'column',gap:0,padding:'4px 0'}}>
+      {steps.map((step,i)=>{
+        const col = colors[i % colors.length];
+        const isLast = i === steps.length-1;
+        return (
+          <div key={i} style={{display:'flex',alignItems:'stretch',gap:0}}>
+            {/* Line + dot column */}
+            <div style={{display:'flex',flexDirection:'column',alignItems:'center',width:44,flexShrink:0}}>
+              <motion.div initial={{scale:0}} animate={{scale:1}} transition={{delay:i*0.06,type:'spring',bounce:0.4}}
+                style={{width:36,height:36,borderRadius:'50%',background:`${col}18`,
+                  border:`2.5px solid ${col}`,display:'flex',alignItems:'center',
+                  justifyContent:'center',fontSize:14,fontWeight:900,color:col,zIndex:1,flexShrink:0}}>
+                {i+1}
+              </motion.div>
+              {!isLast && <div style={{width:2,flex:1,minHeight:20,background:`${col}30`,margin:'2px 0'}}/>}
+            </div>
+            {/* Content */}
+            <motion.div initial={{opacity:0,x:-10}} animate={{opacity:1,x:0}}
+              transition={{delay:i*0.06+0.05}}
+              style={{padding:'6px 0 18px 14px',flex:1}}>
+              <p style={{fontSize:14,fontWeight:800,color:col,marginBottom:3}}>{step.label}</p>
+              {step.description && <p style={{fontSize:12,color:'var(--text-secondary)',lineHeight:1.55}}>{step.description}</p>}
+            </motion.div>
+          </div>
+        );
+      })}
     </div>
   );
 }
