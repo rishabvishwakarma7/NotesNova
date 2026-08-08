@@ -1,0 +1,21 @@
+{
+  "appId": "com.notenova.app",
+  "appName": "NoteNova AI",
+  "webDir": "out",
+  "server": {
+    "url": "https://client-ruby-eight-43.vercel.app",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#0B0F1A"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "launchAutoHide": true,
+      "backgroundColor": "#0B0F1A",
+      "showSpinner": false
+    }
+  }
+}
