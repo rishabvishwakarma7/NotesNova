@@ -162,26 +162,59 @@ export const generateCreativeNotes = async (req, res) => {
     const { topic, subject = '', level = 'intermediate', provider = 'groq' } = req.body;
     if (!topic) return res.status(400).json({ error: 'Topic is required' });
 
+    // ── Normalize topic input ──────────────────────────────────────────────
+    // Handle: "What is CRC?", "Explain TCP", "TCP vs UDP", "CRC and Hamming Code"
+    const rawTopic = topic.trim();
+    const cleanTopic = rawTopic
+      .replace(/^(what is|what are|explain|describe|how does|how do|tell me about|define|difference between|compare)\s+/i, '')
+      .replace(/\?+$/, '')
+      .trim();
+
+    // Detect question format — use as-is for the title
+    const isQuestion = /^(what|how|why|when|where|explain|describe|compare|difference)/i.test(rawTopic);
+    const isMultiTopic = /\s+(vs|versus|and|&|or)\s+/i.test(cleanTopic);
+
+    // Build a smart title
+    const noteTitle = isQuestion
+      ? rawTopic.replace(/\?$/, '')
+      : isMultiTopic
+        ? cleanTopic
+        : cleanTopic;
+
+    const displayTopic = isQuestion ? rawTopic : cleanTopic;
+
     const subjectCtx = subject ? ` (Subject: ${subject})` : '';
     const levelCtx = level || 'intermediate';
 
-    const systemPrompt = `You are NoteNova AI, an expert educational content creator and professor. Generate comprehensive, university-level study notes as JSON. Always return valid JSON only — no markdown, no code fences. Be extremely detailed and educational.`;
+    // Special instruction for multi-topic or question format
+    const topicInstruction = isMultiTopic
+      ? `This is a COMPARISON/MULTI-TOPIC request. Cover all mentioned topics and compare them thoroughly.`
+      : isQuestion
+        ? `This is a QUESTION-FORMAT request. Answer the question comprehensively with depth and examples.`
+        : `Generate comprehensive notes on this topic.`;
 
-    const userPrompt = `Create comprehensive visual study notes for: "${topic}"${subjectCtx}
+    const systemPrompt = `You are NoteNova AI, an expert educational content creator and professor. Generate comprehensive, university-level study notes as JSON. Always return valid JSON only — no markdown, no code fences. Be extremely detailed and educational. Adapt your structure based on whether the input is a single topic, a question, or a comparison between multiple topics.`;
+
+    const userPrompt = `${topicInstruction}
+
+Create comprehensive visual study notes for: "${displayTopic}"${subjectCtx}
 Level: ${levelCtx}
 
-Return a JSON object with this EXACT structure (be thorough, detailed, and educational — not surface-level):
+${isMultiTopic ? `IMPORTANT: This covers multiple topics. In the "overview" explain each topic. In "comparison" table, contrast them directly. In "concepts" cover each separately. In "examples" show examples for each topic.` : ''}
+${isQuestion ? `IMPORTANT: The title is a question. Answer it directly and thoroughly. The overview should directly answer the question. Include all concepts needed to fully understand the answer.` : ''}
+
+Return a JSON object with this EXACT structure:
 {
-  "title": "Complete Topic Title",
+  "title": "${noteTitle}",
   "subject": "${subject || 'General'}",
-  "level": "${level}",
+  "level": "${levelCtx}",
   "emoji": "relevant emoji",
   "color": "blue",
   "relatedTopics": ["Related Topic 1", "Related Topic 2", "Related Topic 3", "Related Topic 4", "Related Topic 5"],
   "sections": [
     {
       "type": "overview",
-      "title": "What is ${topic}?",
+      "title": "${isQuestion ? 'Answer' : isMultiTopic ? 'Overview of All Topics' : 'What is ' + cleanTopic + '?'}",
       "content": "Detailed 3-4 sentence explanation covering what it is, why it matters, and real-world significance.",
       "keyPoints": ["Key insight 1 with explanation", "Key insight 2 with explanation", "Key insight 3 with explanation", "Key insight 4 with explanation", "Key insight 5 with explanation"]
     },
