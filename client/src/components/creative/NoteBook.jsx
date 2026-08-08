@@ -4,6 +4,27 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import InteractiveFlow from './InteractiveFlow';
+
+// ── Adapter: enriches AI-generated steps with what/why/how ─────────────────
+function InteractiveFlowSection({ steps, title, topicTitle }) {
+  if (!steps?.length) return null;
+  // Enrich steps by splitting description into what/why/how heuristically
+  const enriched = steps.map((s, i) => ({
+    ...s,
+    what: s.what || s.description || '',
+    why:  s.why  || `Step ${i+1} is essential: ${s.label} ensures the process continues correctly.`,
+    how:  s.how  || `The system performs "${s.label}" automatically as part of the workflow.`,
+    tech: s.tech || null,
+  }));
+  return (
+    <InteractiveFlow
+      steps={enriched}
+      title={title || topicTitle || 'Process Flow'}
+      subtitle={`How ${topicTitle || 'this process'} works step by step`}
+    />
+  );
+}
 
 // ── Color palette (semantic, never random) ────────────────────────────────
 const C = {
@@ -473,8 +494,10 @@ function Section({ s, i, cardBg, textPrimary, textSecondary }) {
           </div>
         )}
 
-        {/* FLOWCHART — SVG diagram */}
-        {s.type==='flowchart' && <FlowChart steps={s.steps}/>}
+        {/* FLOWCHART — interactive */}
+        {s.type==='flowchart' && (
+          <InteractiveFlowSection steps={s.steps} title={s.title} topicTitle={notes.title}/>
+        )}
 
         {/* COMPARISON — table + optional mind map */}
         {s.type==='comparison' && (
