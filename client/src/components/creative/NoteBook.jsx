@@ -2,6 +2,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 // ── Color palette (semantic, never random) ────────────────────────────────
 const C = {
@@ -655,74 +657,137 @@ function FlashcardDeck({ cards, onClose }) {
   );
 }
 
-// ── Feature 5: AI Follow-up per section ───────────────────────────────────
+// ── Feature 5: AI Follow-up (improved) ───────────────────────────────────
 function AIFollowUp({ topic, subject, cardBg }) {
-  const [loading, setLoading] = useState(false);
-  const [result,  setResult]  = useState('');
-  const [action,  setAction]  = useState('');
+  const [loading,    setLoading]    = useState(false);
+  const [result,     setResult]     = useState('');
+  const [activeAct,  setActiveAct]  = useState('');
+  const [activeLabel,setActiveLabel]= useState('');
 
   const actions = [
-    { id:'simpler',   label:'🐣 Explain Simpler',      prompt:`Explain ${topic} in the simplest possible way for a complete beginner. Use analogies.` },
-    { id:'deeper',    label:'🔬 Go Deeper',             prompt:`Explain the advanced/deep aspects of ${topic} that most textbooks skip. Include edge cases.` },
-    { id:'interview', label:'💼 Interview Questions',   prompt:`Give 5 likely interview questions about ${topic} with detailed model answers.` },
-    { id:'compare',   label:'⚖️ Compare with Similar',  prompt:`Compare ${topic} with similar concepts in ${subject||'this subject'}. When to use which?` },
-    { id:'realworld', label:'🌍 Real-World Uses',       prompt:`Give 5 real-world applications of ${topic} used in industry today with specific examples.` },
+    { id:'simpler',   label:'🐣 Explain Simpler',     color:'#10B981',
+      prompt:`Explain "${topic}" in the simplest possible way for a complete beginner. Use real-life analogies and avoid jargon. Format with markdown headings and bullet points.` },
+    { id:'deeper',    label:'🔬 Go Deeper',            color:'#8B5CF6',
+      prompt:`Explain the advanced and deep aspects of "${topic}" that most textbooks skip. Cover edge cases, internal mechanisms, and expert-level insights. Use markdown formatting.` },
+    { id:'interview', label:'💼 Interview Q&A',        color:'#F59E0B',
+      prompt:`Give 6 likely technical interview questions about "${topic}" with detailed model answers. Format as:\n**Q1: [question]**\n**A:** [detailed answer]\n\nCover basics, tricky questions, and application-based questions.` },
+    { id:'compare',   label:'⚖️ Compare Similar',      color:'#06B6D4',
+      prompt:`Compare "${topic}" with the most similar concepts in ${subject||'this subject'}. Use a markdown table comparing: Purpose, How it works, When to use, Advantages, Disadvantages. Then explain in 2-3 sentences when to choose each.` },
+    { id:'realworld', label:'🌍 Real-World Uses',      color:'#EC4899',
+      prompt:`Give 5 concrete real-world applications of "${topic}" used in industry today. For each: name the company/product, explain exactly how it uses this concept, and why it matters. Use markdown formatting.` },
+    { id:'exam',      label:'🎯 Exam Tips',            color:'#F43F5E',
+      prompt:`Give exam-focused tips for "${topic}". Include: most commonly asked question types, common mistakes students make, key formulas/rules to remember, and 3 practice questions with solutions. Use markdown formatting.` },
   ];
 
   const ask = async (act) => {
-    setLoading(true); setAction(act.id); setResult('');
+    if (loading) return;
+    setLoading(true); setActiveAct(act.id); setActiveLabel(act.label); setResult('');
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-      const token = window.Clerk?.session ? await window.Clerk.session.getToken() : null;
+      // Try Clerk token — gracefully fail if not available
+      let token = null;
+      try {
+        if (typeof window !== 'undefined' && window.Clerk?.session) {
+          token = await window.Clerk.session.getToken();
+        }
+      } catch {}
+
       const r = await fetch(`${apiUrl}/chat/stream`, {
-        method:'POST',
-        headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},
-        body:JSON.stringify({
-          messages:[{role:'user',content:act.prompt}],
-          mode:'study',
-        }),
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', ...(token ? { Authorization:`Bearer ${token}` } : {}) },
+        body: JSON.stringify({ messages:[{ role:'user', content:act.prompt }], mode:'study' }),
       });
+
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+
       const reader = r.body.getReader();
       const dec = new TextDecoder();
       let out = '';
-      while(true) {
-        const {done,value} = await reader.read();
-        if(done) break;
-        for(const line of dec.decode(value).split('\n')) {
-          if(line.startsWith('data: ')&&line!=='data: [DONE]') {
-            try { const d=JSON.parse(line.slice(6)); if(d.content){out+=d.content;setResult(out);} } catch {}
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        for (const line of dec.decode(value).split('\n')) {
+          if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+            try {
+              const d = JSON.parse(line.slice(6));
+              if (d.content) { out += d.content; setResult(out); }
+            } catch {}
           }
         }
       }
-    } catch { setResult('Failed to get AI response. Please try again.'); }
+    } catch (err) {
+      setResult('⚠️ Failed to get AI response. Please check your connection and try again.');
+    }
     setLoading(false);
   };
 
   return (
     <motion.div initial={{opacity:0,y:10}} animate={{opacity:1,y:0}} transition={{delay:.25}}
-      style={{padding:'20px 22px',borderRadius:16,background:cardBg,
+      style={{padding:'22px 24px',borderRadius:16,background:cardBg,
         border:'1px solid rgba(139,92,246,.25)'}}>
-      <p style={{fontSize:12,fontWeight:800,color:'#8B5CF6',textTransform:'uppercase',
-        letterSpacing:'.08em',marginBottom:12}}>🤖 AI Follow-up Actions</p>
-      <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:result?16:0}}>
-        {actions.map(act=>(
-          <button key={act.id} onClick={()=>ask(act)} disabled={loading}
-            style={{padding:'7px 14px',borderRadius:20,border:'none',cursor:loading?'wait':'pointer',
-              fontSize:12,fontWeight:600,transition:'all .15s',
-              background:action===act.id&&(loading||result)?'rgba(139,92,246,.2)':'rgba(139,92,246,.08)',
-              color:action===act.id&&(loading||result)?'#8B5CF6':'var(--text-secondary)',
-              outline:'1px solid rgba(139,92,246,.2)'}}>
-            {loading&&action===act.id?'⏳ Loading…':act.label}
+
+      {/* Header */}
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <div style={{width:30,height:30,borderRadius:9,background:'rgba(139,92,246,.15)',
+            display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>🤖</div>
+          <div>
+            <p style={{fontSize:13,fontWeight:800,color:'#8B5CF6',marginBottom:0}}>AI Deep Dive</p>
+            <p style={{fontSize:11,color:'var(--text-muted)'}}>Ask the AI to go further on this topic</p>
+          </div>
+        </div>
+        {result && (
+          <button onClick={()=>{setResult('');setActiveAct('');}}
+            style={{background:'none',border:'none',cursor:'pointer',color:'var(--text-muted)',
+              fontSize:12,padding:'4px 8px',borderRadius:6,transition:'color .15s'}}
+            onMouseEnter={e=>e.currentTarget.style.color='var(--text-primary)'}
+            onMouseLeave={e=>e.currentTarget.style.color='var(--text-muted)'}>
+            ✕ Clear
           </button>
-        ))}
+        )}
       </div>
+
+      {/* Action buttons */}
+      <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:result?18:0}}>
+        {actions.map(act=>{
+          const isActive = activeAct === act.id;
+          const isDone   = isActive && !loading && result;
+          const isLoading= isActive && loading;
+          return (
+            <button key={act.id} onClick={()=>ask(act)} disabled={loading}
+              style={{padding:'8px 14px',borderRadius:20,border:'none',
+                cursor:loading?'wait':'pointer',fontSize:12,fontWeight:600,
+                transition:'all .15s',
+                background: isDone ? `${act.color}20` : isLoading ? `${act.color}15` : 'var(--bg-tertiary)',
+                color: (isDone||isLoading) ? act.color : 'var(--text-secondary)',
+                outline: isDone ? `1.5px solid ${act.color}50` : isLoading ? `1px solid ${act.color}30` : '1px solid var(--border-color)',
+                transform: isActive ? 'scale(0.97)' : 'none',
+              }}>
+              {isLoading ? '⏳ Loading…' : act.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Result — rendered as markdown */}
       {result && (
-        <motion.div initial={{opacity:0,height:0}} animate={{opacity:1,height:'auto'}}
-          style={{overflow:'hidden'}}>
-          <div style={{padding:'14px 16px',borderRadius:12,background:'rgba(139,92,246,.06)',
-            border:'1px solid rgba(139,92,246,.2)',fontSize:13,color:'var(--text-secondary)',
-            lineHeight:1.75,whiteSpace:'pre-wrap',maxHeight:300,overflowY:'auto'}}>
-            {result}
+        <motion.div initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}>
+          {/* Active action label */}
+          <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:10}}>
+            <span style={{fontSize:11,fontWeight:700,color:'var(--text-muted)',textTransform:'uppercase',letterSpacing:'.07em'}}>
+              Response for:
+            </span>
+            <span style={{fontSize:11,fontWeight:700,color:'#8B5CF6',
+              background:'rgba(139,92,246,.1)',padding:'2px 8px',borderRadius:6}}>
+              {activeLabel}
+            </span>
+          </div>
+          <div style={{padding:'16px 18px',borderRadius:13,
+            background:'rgba(139,92,246,.05)', border:'1px solid rgba(139,92,246,.18)',
+            maxHeight:420,overflowY:'auto'}}>
+            <div className="markdown-body" style={{fontSize:13,lineHeight:1.75,color:'var(--text-secondary)'}}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{result}</ReactMarkdown>
+            </div>
           </div>
         </motion.div>
       )}
@@ -922,26 +987,47 @@ export default function NoteBook({ notes }) {
           {/* Feature 5: AI Follow-up per topic */}
           <AIFollowUp topic={notes.title} subject={notes.subject} cardBg={cardBg}/>
 
-          {/* Feature 10: Related Topics */}
+          {/* Feature 10: Related Topics — improved */}
           {notes.relatedTopics?.length > 0 && (
             <motion.div initial={{opacity:0,y:10}} animate={{opacity:1,y:0}} transition={{delay:.3}}
-              style={{padding:'20px 22px',borderRadius:16,background:cardBg,
+              style={{padding:'22px 24px',borderRadius:16,background:cardBg,
                 border:'1px dashed rgba(99,102,241,.35)'}}>
-              <p style={{fontSize:12,fontWeight:800,color:'#6366F1',textTransform:'uppercase',
-                letterSpacing:'.08em',marginBottom:12}}>🔗 Related Topics to Study Next</p>
-              <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
-                {notes.relatedTopics.map((t,i)=>(
-                  <Link key={i}
-                    href={`/dashboard/creative-notes?topic=${encodeURIComponent(t)}&subject=${encodeURIComponent(notes.subject||'')}`}
-                    style={{padding:'7px 16px',borderRadius:20,fontSize:13,fontWeight:600,
-                      textDecoration:'none',background:'rgba(99,102,241,.08)',
-                      border:'1px solid rgba(99,102,241,.25)',color:'#6366F1',transition:'all .15s'}}
-                    onMouseEnter={e=>{e.currentTarget.style.background='rgba(99,102,241,.18)';}}
-                    onMouseLeave={e=>{e.currentTarget.style.background='rgba(99,102,241,.08)';}}>
-                    📖 {t}
-                  </Link>
-                ))}
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:16}}>
+                <div style={{width:30,height:30,borderRadius:9,background:'rgba(99,102,241,.15)',
+                  display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>🔗</div>
+                <div>
+                  <p style={{fontSize:13,fontWeight:800,color:'#6366F1'}}>Continue Learning</p>
+                  <p style={{fontSize:11,color:'var(--text-muted)'}}>Topics that build on {notes.title}</p>
+                </div>
               </div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:10}}>
+                {notes.relatedTopics.map((t,i)=>{
+                  const colors=['#8B5CF6','#06B6D4','#10B981','#F59E0B','#EC4899'];
+                  const c = colors[i % colors.length];
+                  return (
+                    <Link key={i}
+                      href={`/dashboard/creative-notes?topic=${encodeURIComponent(t)}&subject=${encodeURIComponent(notes.subject||'')}`}
+                      style={{display:'flex',alignItems:'center',gap:10,padding:'12px 14px',
+                        borderRadius:13,textDecoration:'none',transition:'all .2s',
+                        background:`${c}08`,border:`1px solid ${c}25`}}
+                      onMouseEnter={e=>{e.currentTarget.style.background=`${c}15`;e.currentTarget.style.borderColor=`${c}50`;e.currentTarget.style.transform='translateY(-2px)';}}
+                      onMouseLeave={e=>{e.currentTarget.style.background=`${c}08`;e.currentTarget.style.borderColor=`${c}25`;e.currentTarget.style.transform='none';}}>
+                      <div style={{width:32,height:32,borderRadius:9,background:`${c}18`,
+                        display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:16}}>
+                        📖
+                      </div>
+                      <div style={{minWidth:0}}>
+                        <p style={{fontSize:12,fontWeight:700,color:'var(--text-primary)',
+                          overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t}</p>
+                        <p style={{fontSize:11,color:c,fontWeight:600}}>Generate notes →</p>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+              <p style={{fontSize:11,color:'var(--text-muted)',marginTop:12,textAlign:'center'}}>
+                Click any topic to instantly generate Creative Notes for it
+              </p>
             </motion.div>
           )}
 
