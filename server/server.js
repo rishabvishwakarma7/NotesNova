@@ -38,7 +38,7 @@ const PORT = process.env.PORT || 5000;
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({
   origin: process.env.NODE_ENV === 'production'
-    ? process.env.CLIENT_URL
+    ? [process.env.CLIENT_URL, 'https://notenova-app.vercel.app', 'https://client-ruby-eight-43.vercel.app'].filter(Boolean)
     : 'http://localhost:3000',
   credentials: true,
 }));
