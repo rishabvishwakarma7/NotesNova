@@ -76,7 +76,6 @@ export default function Footer() {
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {[
                 {label:'Get Premium',    href:'/dashboard/premium'},
-                {label:'Admin Panel',    href:'/nx-admin'},
                 {label:'Contact Us',     href:'#contact'},
                 {label:'Email Support',  href:'mailto:rishabvishwakarma007@gmail.com'},
                 {label:'Instagram',      href:'https://instagram.com/rishhab.v'},

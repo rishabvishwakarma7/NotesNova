@@ -648,6 +648,7 @@ export default function AdminPanel() {
   const [token, setToken] = useState(null);
   const [tab, setTab] = useState('overview');
   const [stats, setStats] = useState(null);
+  const [premiumCounts, setPremiumCounts] = useState(null);
   const [users, setUsers] = useState(null);
   const [activity, setActivity] = useState(null);
   const [chats, setChats] = useState(null);
@@ -675,8 +676,9 @@ export default function AdminPanel() {
   const fetchUsers    = useCallback(async (page=1,search='') => { const r = await fetch(`${API}/admin/users?page=${page}&limit=20&search=${encodeURIComponent(search)}`, { headers:hdrs() }); if (r.ok) setUsers(await r.json()); }, [hdrs]);
   const fetchChats    = useCallback(async (page=1,search='',mode='') => { const params = new URLSearchParams({page,limit:20,search,mode}); const r = await fetch(`${API}/admin/chats?${params}`, { headers:hdrs() }); if (r.ok) setChats(await r.json()); }, [hdrs]);
   const fetchFeedback = useCallback(async (type='') => { const params = new URLSearchParams(type ? {type} : {}); const r = await fetch(`${API}/feedback/admin?${params}`, { headers:hdrs() }); if (r.ok) setFeedback(await r.json()); }, [hdrs]);
+  const fetchPremium  = useCallback(async () => { const r = await fetch(`${API}/premium/admin/requests?limit=1`, { headers:hdrs() }); if (r.ok) { const d = await r.json(); setPremiumCounts(d.counts); } }, [hdrs]);
 
-  useEffect(() => { if (!token) return; setLoading(true); Promise.all([fetchStats(), fetchActivity()]).finally(() => setLoading(false)); }, [token, refreshKey, fetchStats, fetchActivity]);
+  useEffect(() => { if (!token) return; setLoading(true); Promise.all([fetchStats(), fetchActivity(), fetchPremium()]).finally(() => setLoading(false)); }, [token, refreshKey, fetchStats, fetchActivity, fetchPremium]);
   useEffect(() => { if (!token || tab !== 'users' || selectedUser) return; fetchUsers(userPage, userSearch); }, [token, tab, userPage, userSearch, refreshKey, selectedUser, fetchUsers]);
   useEffect(() => { if (!token || tab !== 'chats') return; fetchChats(chatPage, chatSearch, chatMode); }, [token, tab, chatPage, chatSearch, chatMode, refreshKey, fetchChats]);
   useEffect(() => { if (!token || tab !== 'feedback') return; fetchFeedback(fbFilter); }, [token, tab, fbFilter, refreshKey, fetchFeedback]);
@@ -747,37 +749,107 @@ export default function AdminPanel() {
             {/* OVERVIEW */}
             {tab === 'overview' && stats && (
               <motion.div key="overview" initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}>
-                <h2 style={{ fontSize:22, fontWeight:800, color:'var(--text-primary)', marginBottom:24 }}>Overview</h2>
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:16, marginBottom:28 }}>
-                  <StatCard icon={Users}        label="Total Users"   value={stats.totals.users}   sub={`+${stats.week.users} this week`}    color="#8B5CF6" />
-                  <StatCard icon={FileText}      label="Total Notes"   value={stats.totals.notes}   sub={`+${stats.today.notes} today`}       color="#06B6D4" />
-                  <StatCard icon={MessageSquare} label="Total Chats"   value={stats.totals.chats}   sub={`+${stats.today.chats} today`}       color="#EC4899" />
-                  <StatCard icon={Brain}         label="Total Quizzes" value={stats.totals.quizzes} sub={`${stats.quiz.avgScore}% avg`}       color="#F59E0B" />
-                  <StatCard icon={CalendarDays}  label="Study Plans"   value={stats.totals.plans}                                            color="#10B981" />
-                  <StatCard icon={Zap}           label="Quiz Attempts" value={stats.quiz.totalAttempts} sub={`${stats.quiz.avgScore}% avg`}  color="#F43F5E" />
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:24, flexWrap:'wrap', gap:12 }}>
+                  <h2 style={{ fontSize:22, fontWeight:800, color:'var(--text-primary)' }}>Dashboard Overview</h2>
+                  <div style={{ fontSize:12, color:'var(--text-muted)', background:'var(--bg-tertiary)',
+                    padding:'6px 14px', borderRadius:20, border:'1px solid var(--border-color)' }}>
+                    🕐 {new Date().toLocaleString('en-IN',{ month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}
+                  </div>
                 </div>
-                <div style={{ background:'var(--bg-secondary)', border:'1px solid var(--border-color)', borderRadius:16, padding:24, marginBottom:24 }}>
+
+                {/* Primary stats */}
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))', gap:14, marginBottom:20 }}>
+                  <StatCard icon={Users}        label="Total Users"     value={stats.totals.users}        sub={`+${stats.week.users} this week`}         color="#8B5CF6" />
+                  <StatCard icon={Crown}        label="Premium Users"   value={premiumCounts?.approved||0} sub={`${premiumCounts?.pending||0} pending`}  color="#F59E0B" />
+                  <StatCard icon={FileText}     label="Notes Created"   value={stats.totals.notes}        sub={`+${stats.today.notes} today`}            color="#06B6D4" />
+                  <StatCard icon={MessageSquare}label="AI Chats"        value={stats.totals.chats}        sub={`+${stats.today.chats} today`}            color="#EC4899" />
+                  <StatCard icon={Brain}        label="Quizzes Made"    value={stats.totals.quizzes}      sub={`${stats.quiz.avgScore}% avg score`}      color="#F59E0B" />
+                  <StatCard icon={Zap}          label="Quiz Attempts"   value={stats.quiz.totalAttempts}  sub="total"                                    color="#F43F5E" />
+                  <StatCard icon={CalendarDays} label="Study Plans"     value={stats.totals.plans}        sub="active"                                   color="#10B981" />
+                  <StatCard icon={Users}        label="New Today"       value={stats.today.users}         sub="registrations"                            color="#3B82F6" />
+                </div>
+
+                {/* Revenue summary */}
+                {premiumCounts && (
+                  <div style={{ padding:'20px 24px', borderRadius:16, marginBottom:20,
+                    background:'linear-gradient(135deg,rgba(245,185,66,0.1),rgba(245,185,66,0.04))',
+                    border:'1px solid rgba(245,185,66,0.3)',
+                    display:'flex', alignItems:'center', gap:20, flexWrap:'wrap' }}>
+                    <div style={{ fontSize:28 }}>👑</div>
+                    <div style={{ flex:1, minWidth:180 }}>
+                      <p style={{ fontSize:13, fontWeight:700, color:'#F59E0B', marginBottom:4 }}>Premium Revenue</p>
+                      <p style={{ fontSize:28, fontWeight:900, color:'var(--text-primary)', lineHeight:1 }}>
+                        ₹{(premiumCounts.approved || 0) * 99}
+                      </p>
+                      <p style={{ fontSize:12, color:'var(--text-muted)', marginTop:4 }}>
+                        {premiumCounts.approved || 0} paid members × ₹99
+                      </p>
+                    </div>
+                    <div style={{ display:'flex', gap:16, flexWrap:'wrap' }}>
+                      {[
+                        { label:'Approved', val:premiumCounts.approved||0, color:'#10B981' },
+                        { label:'Pending',  val:premiumCounts.pending||0,  color:'#F59E0B' },
+                        { label:'Rejected', val:premiumCounts.rejected||0, color:'#F43F5E' },
+                      ].map(s=>(
+                        <div key={s.label} style={{ textAlign:'center' }}>
+                          <p style={{ fontSize:22, fontWeight:900, color:s.color }}>{s.val}</p>
+                          <p style={{ fontSize:11, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'.06em' }}>{s.label}</p>
+                        </div>
+                      ))}
+                    </div>
+                    {(premiumCounts.pending||0) > 0 && (
+                      <button onClick={() => { setTab('premium'); }}
+                        style={{ padding:'9px 18px', borderRadius:10, border:'none', cursor:'pointer',
+                          background:'linear-gradient(135deg,#F59E0B,#FBBF24)', color:'#000',
+                          fontWeight:800, fontSize:13, whiteSpace:'nowrap' }}>
+                        Review {premiumCounts.pending} Pending →
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Activity chart */}
+                <div style={{ background:'var(--bg-secondary)', border:'1px solid var(--border-color)', borderRadius:16, padding:24, marginBottom:20 }}>
                   <h3 style={{ fontWeight:700, fontSize:15, color:'var(--text-primary)', marginBottom:20 }}>📊 14-Day Activity</h3>
                   <ActivityBar data={stats.dailyActivity} />
                 </div>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+
+                {/* Chat modes + Note types */}
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }} className="admin-2col">
+                  <style>{`.admin-2col{grid-template-columns:1fr 1fr}@media(max-width:640px){.admin-2col{grid-template-columns:1fr!important}}`}</style>
                   <div style={{ background:'var(--bg-secondary)', border:'1px solid var(--border-color)', borderRadius:16, padding:24 }}>
                     <h3 style={{ fontWeight:700, fontSize:15, color:'var(--text-primary)', marginBottom:16 }}>💬 Chat Modes</h3>
-                    {stats.chatModes.map(m => (
-                      <div key={m._id} style={{ display:'flex', justifyContent:'space-between', marginBottom:10 }}>
-                        <span style={{ fontSize:13, color:'var(--text-secondary)', textTransform:'capitalize' }}>{m._id||'study'}</span>
-                        <span style={{ fontSize:13, fontWeight:700, color:'#8B5CF6' }}>{m.count}</span>
-                      </div>
-                    ))}
+                    {stats.chatModes.map(m => {
+                      const pct = stats.totals.chats > 0 ? Math.round((m.count/stats.totals.chats)*100) : 0;
+                      return (
+                        <div key={m._id} style={{ marginBottom:12 }}>
+                          <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+                            <span style={{ fontSize:13, color:'var(--text-secondary)', textTransform:'capitalize' }}>{m._id||'study'}</span>
+                            <span style={{ fontSize:13, fontWeight:700, color:'#8B5CF6' }}>{m.count}</span>
+                          </div>
+                          <div style={{ height:4, borderRadius:2, background:'var(--bg-tertiary)', overflow:'hidden' }}>
+                            <div style={{ height:'100%', width:`${pct}%`, borderRadius:2, background:'#8B5CF6' }}/>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                   <div style={{ background:'var(--bg-secondary)', border:'1px solid var(--border-color)', borderRadius:16, padding:24 }}>
                     <h3 style={{ fontWeight:700, fontSize:15, color:'var(--text-primary)', marginBottom:16 }}>📝 Note Types</h3>
-                    {stats.noteTypes.map(t => (
-                      <div key={t._id} style={{ display:'flex', justifyContent:'space-between', marginBottom:10 }}>
-                        <span style={{ fontSize:13, color:'var(--text-secondary)', textTransform:'capitalize' }}>{t._id||'custom'}</span>
-                        <span style={{ fontSize:13, fontWeight:700, color:'#06B6D4' }}>{t.count}</span>
-                      </div>
-                    ))}
+                    {stats.noteTypes.map(t => {
+                      const pct = stats.totals.notes > 0 ? Math.round((t.count/stats.totals.notes)*100) : 0;
+                      return (
+                        <div key={t._id} style={{ marginBottom:12 }}>
+                          <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+                            <span style={{ fontSize:13, color:'var(--text-secondary)', textTransform:'capitalize' }}>{t._id||'custom'}</span>
+                            <span style={{ fontSize:13, fontWeight:700, color:'#06B6D4' }}>{t.count}</span>
+                          </div>
+                          <div style={{ height:4, borderRadius:2, background:'var(--bg-tertiary)', overflow:'hidden' }}>
+                            <div style={{ height:'100%', width:`${pct}%`, borderRadius:2, background:'#06B6D4' }}/>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </motion.div>
