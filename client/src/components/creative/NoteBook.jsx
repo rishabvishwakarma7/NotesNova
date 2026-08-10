@@ -1,10 +1,30 @@
 'use client';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, Component } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import InteractiveFlow from './InteractiveFlow';
+
+// ── Error boundary to prevent full page crash ──────────────────────────────
+class NoteErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(err) { return { error: err }; }
+  render() {
+    if (this.state.error) return (
+      <div style={{ padding:'20px', borderRadius:14, background:'rgba(244,63,94,0.08)',
+        border:'1px solid rgba(244,63,94,0.25)', margin:'8px 0' }}>
+        <p style={{ fontSize:13, fontWeight:700, color:'#F43F5E', marginBottom:6 }}>
+          ⚠️ Section render error
+        </p>
+        <p style={{ fontSize:12, color:'var(--text-muted)' }}>
+          {this.state.error?.message || 'Unknown error in this section'}
+        </p>
+      </div>
+    );
+    return this.props.children;
+  }
+}
 
 // ── Adapter: enriches AI-generated steps with what/why/how ─────────────────
 function InteractiveFlowSection({ steps, title, topicTitle }) {
@@ -138,119 +158,72 @@ function CodeBox({ code, lang='', output='' }) {
   );
 }
 
-// ── Radial Spoke Flowchart (inspired by Process Flow Timeline image) ──────
+// ── Flowchart — pure CSS, no SVG motion (safe, no crash) ─────────────────
 function FlowChart({ steps, title }) {
   if (!steps?.length) return null;
-
   const COLORS = ['#F59E0B','#F97316','#3B82F6','#14B8A6','#8B5CF6','#EC4899','#10B981','#EF4444'];
   const EMOJIS = ['💡','🎯','📡','🔑','⚙️','🚀','🔄','📋'];
-  const count = Math.min(steps.length, 8);
 
-  // For ≤4 steps use the radial spoke layout; for 5+ use enhanced linear
-  if (count <= 6) {
-    // Radial layout: center hub + spokes
-    const W = 560, H = 400, cx = W/2, cy = H/2, hubR = 52;
-    const spokeR = 155;
-    const angleStep = (2 * Math.PI) / count;
+  // Grid layout for ≤6 steps, linear for more
+  const count = steps.length;
+  const useGrid = count >= 3 && count <= 6;
 
-    // Card dimensions
-    const CARD_W = 130, CARD_H = 72;
+  if (useGrid) {
+    // 2-column alternating grid (left-right pattern)
+    const mid = Math.ceil(count / 2);
+    const left = steps.slice(0, mid);
+    const right = steps.slice(mid);
 
     return (
-      <div style={{overflowX:'auto',padding:'8px 0'}}>
-        <div style={{minWidth:300,maxWidth:'100%',display:'flex',justifyContent:'center'}}>
-          <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}
-            style={{maxWidth:'100%',overflow:'visible'}}>
-            <defs>
-              {COLORS.slice(0,count).map((col,i)=>(
-                <radialGradient key={i} id={`rg${i}`} cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stopColor={col} stopOpacity="0.9"/>
-                  <stop offset="100%" stopColor={col} stopOpacity="0.6"/>
-                </radialGradient>
-              ))}
-            </defs>
+      <div style={{position:'relative'}}>
+        {/* Center vertical line */}
+        <div style={{position:'absolute',left:'50%',top:0,bottom:0,width:2,
+          background:'linear-gradient(180deg,rgba(99,102,241,0),rgba(99,102,241,0.3),rgba(99,102,241,0))',
+          transform:'translateX(-50%)',zIndex:0}}/>
 
-            {/* Spoke lines from hub to cards */}
-            {steps.slice(0,count).map((step,i)=>{
-              const angle = i * angleStep - Math.PI/2;
-              const nx = cx + spokeR * Math.cos(angle);
-              const ny = cy + spokeR * Math.sin(angle);
-              const col = COLORS[i % COLORS.length];
-              // Line from hub edge to card edge
-              const hx = cx + (hubR+4) * Math.cos(angle);
-              const hy = cy + (hubR+4) * Math.sin(angle);
-              const ex = nx - (CARD_W/2+2) * Math.cos(angle);
-              const ey = ny - (CARD_H/2+2) * Math.sin(angle);
-              return (
-                <motion.line key={i} x1={hx} y1={hy} x2={ex} y2={ey}
-                  stroke={col} strokeWidth="2" strokeDasharray="5,3" opacity="0.6"
-                  initial={{pathLength:0,opacity:0}} animate={{pathLength:1,opacity:0.6}}
-                  transition={{delay:0.2+i*0.1,duration:0.5}}/>
-              );
-            })}
-
-            {/* Spoke cards */}
-            {steps.slice(0,count).map((step,i)=>{
-              const angle = i * angleStep - Math.PI/2;
-              const nx = cx + spokeR * Math.cos(angle);
-              const ny = cy + spokeR * Math.sin(angle);
-              const col = COLORS[i % COLORS.length];
-              const emoji = EMOJIS[i % EMOJIS.length];
-              // Is it on the left half?
-              const isLeft = Math.cos(angle) < -0.1;
-              // Icon circle position — on the inner side of the card
-              const iconX = isLeft ? nx + CARD_W/2 - 22 : nx - CARD_W/2 + 22;
-              const textX  = isLeft ? nx - CARD_W/2 + 8  : nx + CARD_W/2 - 8 - 44;
-
-              return (
-                <motion.g key={i}
-                  initial={{opacity:0,scale:0.7}} animate={{opacity:1,scale:1}}
-                  transition={{delay:0.1+i*0.08,duration:0.35,type:'spring',bounce:0.3}}>
-                  {/* Card background — teardrop/pill shape */}
-                  <rect x={nx - CARD_W/2} y={ny - CARD_H/2}
-                    width={CARD_W} height={CARD_H} rx="18" ry="18"
-                    fill={col+'15'} stroke={col} strokeWidth="2"/>
-                  {/* Icon circle */}
-                  <circle cx={iconX} cy={ny} r="22" fill={`url(#rg${i})`}/>
-                  <text x={iconX} y={ny+7} textAnchor="middle" fontSize="18">{emoji}</text>
-                  {/* Label */}
-                  <text x={isLeft ? nx - CARD_W/2 + 16 : nx - CARD_W/2 + 16}
-                    y={ny - 8} fill={col} fontSize="11" fontWeight="800"
-                    style={{textTransform:'uppercase',letterSpacing:'0.06em'}}>
-                    {step.label?.length > 14 ? step.label.slice(0,14)+'…' : step.label}
-                  </text>
-                  {step.description && (
-                    <foreignObject x={nx - CARD_W/2 + 10} y={ny + 2} width={CARD_W-50} height={28}>
-                      <div xmlns="http://www.w3.org/1999/xhtml"
-                        style={{fontSize:9,color:'#94A3B8',lineHeight:1.3,wordBreak:'break-word'}}>
-                        {step.description.length > 40 ? step.description.slice(0,40)+'…' : step.description}
-                      </div>
-                    </foreignObject>
-                  )}
-                </motion.g>
-              );
-            })}
-
-            {/* Center hub */}
-            <motion.g initial={{scale:0,opacity:0}} animate={{scale:1,opacity:1}}
-              transition={{duration:0.4,type:'spring',bounce:0.4}}>
-              <circle cx={cx} cy={cy} r={hubR+8} fill="rgba(99,102,241,0.08)" stroke="rgba(99,102,241,0.2)" strokeWidth="1.5" strokeDasharray="4,3"/>
-              <circle cx={cx} cy={cy} r={hubR} fill="var(--bg-secondary)" stroke="#6366F1" strokeWidth="2.5"/>
-              <text x={cx} y={cy-8} textAnchor="middle" fill="#6366F1" fontSize="11" fontWeight="800">Process</text>
-              <text x={cx} y={cy+6} textAnchor="middle" fill="#6366F1" fontSize="11" fontWeight="800">Flow</text>
-              {title && <text x={cx} y={cy+20} textAnchor="middle" fill="#94A3B8" fontSize="9">{title.length>12?title.slice(0,12)+'…':title}</text>}
-            </motion.g>
-          </svg>
+        {/* Center hub */}
+        <div style={{display:'flex',justifyContent:'center',marginBottom:20,position:'relative',zIndex:1}}>
+          <div style={{padding:'10px 20px',borderRadius:20,background:'rgba(99,102,241,0.1)',
+            border:'2px solid rgba(99,102,241,0.3)',fontSize:13,fontWeight:800,color:'#6366F1',
+            backdropFilter:'blur(8px)'}}>
+            🔄 {title || 'Process Flow'}
+          </div>
         </div>
 
-        {/* Step legend below */}
-        <div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:12,justifyContent:'center'}}>
-          {steps.slice(0,count).map((step,i)=>(
-            <div key={i} style={{display:'flex',alignItems:'center',gap:6,padding:'5px 12px',
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+          {steps.map((step, i) => {
+            const col = COLORS[i % COLORS.length];
+            const emoji = EMOJIS[i % EMOJIS.length];
+            return (
+              <motion.div key={i} initial={{opacity:0,y:12}} animate={{opacity:1,y:0}}
+                transition={{delay:i*0.08}}
+                style={{padding:'14px 16px',borderRadius:14,
+                  background:`${col}10`,border:`1.5px solid ${col}30`,
+                  display:'flex',gap:10,alignItems:'flex-start'}}>
+                <div style={{width:34,height:34,borderRadius:10,background:col,
+                  display:'flex',alignItems:'center',justifyContent:'center',
+                  fontSize:14,flexShrink:0,color:'white',fontWeight:900}}>
+                  {i+1}
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <p style={{fontSize:13,fontWeight:800,color:col,marginBottom:4}}>{step.label}</p>
+                  {step.description && (
+                    <p style={{fontSize:12,color:'var(--text-secondary)',lineHeight:1.55}}>{step.description}</p>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+
+        {/* Color legend */}
+        <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:14,justifyContent:'center'}}>
+          {steps.map((s,i)=>(
+            <div key={i} style={{display:'flex',alignItems:'center',gap:5,padding:'4px 10px',
               borderRadius:20,background:`${COLORS[i%COLORS.length]}10`,
-              border:`1px solid ${COLORS[i%COLORS.length]}30`}}>
-              <div style={{width:8,height:8,borderRadius:'50%',background:COLORS[i%COLORS.length],flexShrink:0}}/>
-              <span style={{fontSize:11,fontWeight:700,color:COLORS[i%COLORS.length]}}>{step.label}</span>
+              border:`1px solid ${COLORS[i%COLORS.length]}25`}}>
+              <div style={{width:7,height:7,borderRadius:'50%',background:COLORS[i%COLORS.length]}}/>
+              <span style={{fontSize:10,fontWeight:700,color:COLORS[i%COLORS.length]}}>{s.label}</span>
             </div>
           ))}
         </div>
@@ -258,38 +231,35 @@ function FlowChart({ steps, title }) {
     );
   }
 
-  // Linear fallback for 7+ steps (enhanced)
-  const colors = COLORS;
+  // Linear timeline for all other counts
   return (
     <div style={{display:'flex',flexDirection:'column',gap:0,padding:'4px 0'}}>
       {steps.map((step,i)=>{
-        const col = colors[i % colors.length];
+        const col = COLORS[i % COLORS.length];
         const isLast = i === steps.length-1;
         return (
-          <div key={i} style={{display:'flex',alignItems:'stretch',gap:0}}>
-            {/* Line + dot column */}
+          <motion.div key={i} initial={{opacity:0,x:-10}} animate={{opacity:1,x:0}}
+            transition={{delay:i*0.06}}
+            style={{display:'flex',alignItems:'stretch',gap:0}}>
             <div style={{display:'flex',flexDirection:'column',alignItems:'center',width:44,flexShrink:0}}>
-              <motion.div initial={{scale:0}} animate={{scale:1}} transition={{delay:i*0.06,type:'spring',bounce:0.4}}
-                style={{width:36,height:36,borderRadius:'50%',background:`${col}18`,
-                  border:`2.5px solid ${col}`,display:'flex',alignItems:'center',
-                  justifyContent:'center',fontSize:14,fontWeight:900,color:col,zIndex:1,flexShrink:0}}>
+              <div style={{width:36,height:36,borderRadius:'50%',background:`${col}18`,
+                border:`2.5px solid ${col}`,display:'flex',alignItems:'center',
+                justifyContent:'center',fontSize:14,fontWeight:900,color:col,flexShrink:0}}>
                 {i+1}
-              </motion.div>
+              </div>
               {!isLast && <div style={{width:2,flex:1,minHeight:20,background:`${col}30`,margin:'2px 0'}}/>}
             </div>
-            {/* Content */}
-            <motion.div initial={{opacity:0,x:-10}} animate={{opacity:1,x:0}}
-              transition={{delay:i*0.06+0.05}}
-              style={{padding:'6px 0 18px 14px',flex:1}}>
+            <div style={{padding:'4px 0 18px 14px',flex:1}}>
               <p style={{fontSize:14,fontWeight:800,color:col,marginBottom:3}}>{step.label}</p>
               {step.description && <p style={{fontSize:12,color:'var(--text-secondary)',lineHeight:1.55}}>{step.description}</p>}
-            </motion.div>
-          </div>
+            </div>
+          </motion.div>
         );
       })}
     </div>
   );
 }
+
 
 // ── Mind Map SVG ───────────────────────────────────────────────────────────
 function MindMap({ title, items }) {
@@ -368,23 +338,38 @@ function Quiz({ questions }) {
   const [ans, setAns] = useState({});
   const [rev, setRev] = useState({});
   if (!questions?.length) return null;
+
+  const isOptionCorrect = (opt, answer, oi) => {
+    if (!answer && answer !== 0) return false;
+    const ansStr = String(answer).trim().toLowerCase();
+    const optStr = String(opt || '').trim().toLowerCase();
+    if (optStr === ansStr) return true;
+    if (optStr.startsWith(ansStr)) return true;
+    const letterMap = { a: 0, b: 1, c: 2, d: 3 };
+    if (letterMap[ansStr] === oi || String(oi) === ansStr) return true;
+    return false;
+  };
+
   return (
     <div style={{display:'flex',flexDirection:'column',gap:14}}>
       {questions.map((q,qi)=>{
         const chosen = ans[qi], revealed = rev[qi];
+        const chosenIndex = q.options?.indexOf(chosen);
+        const isChosenCorrect = chosen ? isOptionCorrect(chosen, q.answer, chosenIndex) : false;
         return (
           <motion.div key={qi} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} transition={{delay:qi*.06}}
             style={{padding:'16px 18px',borderRadius:14,background:'var(--bg-secondary)',
-              border:`1.5px solid ${revealed?(chosen?.startsWith(q.answer)?'rgba(16,185,129,.4)':'rgba(244,63,94,.35)'):'var(--border-color)'}`}}>
+              border:`1.5px solid ${revealed?(isChosenCorrect?'rgba(16,185,129,.4)':'rgba(244,63,94,.35)'):'var(--border-color)'}`}}>
             <p style={{fontSize:14,fontWeight:700,color:'var(--text-primary)',marginBottom:10}}>
               <span style={{color:'#8B5CF6',marginRight:6}}>Q{qi+1}.</span>{q.q}
             </p>
             <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:10}}>
               {q.options?.map((opt,oi)=>{
                 let bg='var(--bg-tertiary)',bd='var(--border-color)',co='var(--text-primary)';
+                const isCorrect = isOptionCorrect(opt, q.answer, oi);
                 if(chosen===opt&&!revealed){bg='rgba(99,102,241,.12)';bd='rgba(99,102,241,.4)';co='#818CF8';}
-                if(revealed&&opt.startsWith(q.answer)){bg='rgba(16,185,129,.12)';bd='rgba(16,185,129,.4)';co='#10B981';}
-                if(revealed&&chosen===opt&&!opt.startsWith(q.answer)){bg='rgba(244,63,94,.1)';bd='rgba(244,63,94,.35)';co='#F43F5E';}
+                if(revealed&&isCorrect){bg='rgba(16,185,129,.12)';bd='rgba(16,185,129,.4)';co='#10B981';}
+                if(revealed&&chosen===opt&&!isCorrect){bg='rgba(244,63,94,.1)';bd='rgba(244,63,94,.35)';co='#F43F5E';}
                 return (
                   <button key={oi} onClick={()=>!revealed&&setAns(p=>({...p,[qi]:opt}))}
                     style={{padding:'8px 13px',borderRadius:9,border:`1px solid ${bd}`,
@@ -531,14 +516,17 @@ function Section({ s, i, cardBg, textPrimary, textSecondary }) {
         {s.type==='tips' && (
           <div style={{display:'flex',flexDirection:'column',gap:10}}>
             {s.tips?.map((tip,j)=>{
-              const cfg = tip.type==='warning' ? {e:'⚠️',c:C.red} : tip.type==='important' ? {e:'📌',c:C.blue} : {e:'💡',c:C.yellow};
+              const isObj = typeof tip === 'object' && tip !== null;
+              const tipType = isObj ? tip.type : 'tip';
+              const tipText = isObj ? tip.text : String(tip);
+              const cfg = tipType==='warning' ? {e:'⚠️',c:C.red} : tipType==='important' ? {e:'📌',c:C.blue} : {e:'💡',c:C.yellow};
               return (
                 <motion.div key={j} initial={{opacity:0,x:-6}} animate={{opacity:1,x:0}} transition={{delay:j*.04}}
                   style={{padding:'11px 15px',borderRadius:11,
                     background:cfg.c.bg,border:`1px solid ${cfg.c.bd}`,
                     display:'flex',gap:10,alignItems:'flex-start'}}>
                   <span style={{fontSize:16,flexShrink:0}}>{cfg.e}</span>
-                  <p style={{fontSize:13,color:'var(--text-primary)',lineHeight:1.6}}>{tip.text}</p>
+                  <p style={{fontSize:13,color:'var(--text-primary)',lineHeight:1.6}}>{tipText}</p>
                 </motion.div>
               );
             })}
@@ -548,15 +536,18 @@ function Section({ s, i, cardBg, textPrimary, textSecondary }) {
         {/* MEMORY — pink grid */}
         {s.type==='memory' && (
           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))',gap:10}}>
-            {s.tricks?.map((t,j)=>(
-              <motion.div key={j} whileHover={{scale:1.03}} transition={{duration:.15}}
-                style={{padding:'13px 15px',borderRadius:12,
-                  background:C.pink.bg,border:`1px solid ${C.pink.bd}`,
-                  display:'flex',gap:9,alignItems:'flex-start'}}>
-                <span style={{fontSize:18,flexShrink:0}}>✨</span>
-                <p style={{fontSize:12,color:'var(--text-primary)',lineHeight:1.6}}>{t}</p>
-              </motion.div>
-            ))}
+            {s.tricks?.map((t,j)=>{
+              const text = typeof t === 'object' && t !== null ? t.trick || t.text || '' : String(t);
+              return (
+                <motion.div key={j} whileHover={{scale:1.03}} transition={{duration:.15}}
+                  style={{padding:'13px 15px',borderRadius:12,
+                    background:C.pink.bg,border:`1px solid ${C.pink.bd}`,
+                    display:'flex',gap:9,alignItems:'flex-start'}}>
+                  <span style={{fontSize:18,flexShrink:0}}>✨</span>
+                  <p style={{fontSize:12,color:'var(--text-primary)',lineHeight:1.6}}>{text}</p>
+                </motion.div>
+              );
+            })}
           </div>
         )}
 
@@ -581,9 +572,12 @@ function Section({ s, i, cardBg, textPrimary, textSecondary }) {
                 background:C.yellow.bg,border:`1px solid ${C.yellow.bd}`}}>
                 <p style={{fontSize:11,fontWeight:800,color:C.yellow.tx,
                   textTransform:'uppercase',letterSpacing:'.08em',marginBottom:9}}>🎯 Exam Tips</p>
-                {s.examTips.map((t,j)=>(
-                  <p key={j} style={{fontSize:12,color:'var(--text-secondary)',marginBottom:5,lineHeight:1.55}}>→ {t}</p>
-                ))}
+                {s.examTips.map((t,j)=>{
+                  const text = typeof t === 'object' && t !== null ? t.tip || t.text || '' : String(t);
+                  return (
+                    <p key={j} style={{fontSize:12,color:'var(--text-secondary)',marginBottom:5,lineHeight:1.55}}>→ {text}</p>
+                  );
+                })}
               </div>
             )}
           </>
@@ -921,12 +915,12 @@ function AIFollowUp({ topic, subject, cardBg }) {
 function sectionToMd(s) {
   let md = `## ${s.title || s.type}\n\n`;
   if(s.content) md += s.content + '\n\n';
-  if(s.keyPoints) md += s.keyPoints.map(p=>`- ${p}`).join('\n') + '\n\n';
-  if(s.items) md += s.items.map(i=>`**${i.term||i.name}**: ${i.definition||i.explanation}`).join('\n') + '\n\n';
-  if(s.steps) md += s.steps.map(st=>`${st.step}. **${st.label}** — ${st.description}`).join('\n') + '\n\n';
-  if(s.tips) md += s.tips.map(t=>`> ${t.type.toUpperCase()}: ${t.text}`).join('\n') + '\n\n';
-  if(s.tricks) md += s.tricks.map(t=>`- ✨ ${t}`).join('\n') + '\n\n';
-  if(s.points) md += s.points.map(p=>`- ${p}`).join('\n') + '\n\n';
+  if(s.keyPoints) md += (Array.isArray(s.keyPoints) ? s.keyPoints : []).map(p=>`- ${p}`).join('\n') + '\n\n';
+  if(s.items) md += (Array.isArray(s.items) ? s.items : []).map(i=>`**${typeof i==='object'&&i!==null?i.term||i.name||'':i}**: ${typeof i==='object'&&i!==null?i.definition||i.explanation||'':''}`).join('\n') + '\n\n';
+  if(s.steps) md += (Array.isArray(s.steps) ? s.steps : []).map(st=>`${st.step||''}. **${st.label||''}** — ${st.description||''}`).join('\n') + '\n\n';
+  if(s.tips) md += (Array.isArray(s.tips) ? s.tips : []).map(t=>`> ${typeof t==='object'&&t!==null?(t.type||'tip').toUpperCase()+': '+(t.text||''):'TIP: '+t}`).join('\n') + '\n\n';
+  if(s.tricks) md += (Array.isArray(s.tricks) ? s.tricks : []).map(t=>`- ✨ ${typeof t==='object'&&t!==null?t.trick||t.text||'':t}`).join('\n') + '\n\n';
+  if(s.points) md += (Array.isArray(s.points) ? s.points : []).map(p=>`- ${p}`).join('\n') + '\n\n';
   return md;
 }
 
@@ -1064,7 +1058,8 @@ export default function NoteBook({ notes }) {
 
           {/* Sections */}
           {sections.map((s, i) => (
-            <div key={i} style={{position:'relative'}}>
+            <NoteErrorBoundary key={i}>
+            <div style={{position:'relative'}}>
               {/* Feature 2: Bookmark button */}
               <button onClick={()=>toggleBookmark(i)}
                 className="nb-noprint"
@@ -1104,6 +1099,7 @@ export default function NoteBook({ notes }) {
                 )}
               </AnimatePresence>
             </div>
+            </NoteErrorBoundary>
           ))}
 
           {/* Feature 5: AI Follow-up per topic */}

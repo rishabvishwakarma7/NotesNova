@@ -48,7 +48,8 @@ export default function SubjectSelector({ value = '', onChange, placeholder = 'S
         setSubjects(Object.values(map).sort((a, b) => a.name.localeCompare(b.name)));
       } catch {}
     })();
-  }, [getToken]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Sync query when value changes externally
   useEffect(() => { setQuery(value); }, [value]);

@@ -1,5 +1,4 @@
 'use client';
-export const dynamic = 'force-dynamic';
 
 import { useState, useRef, useEffect, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -8,7 +7,6 @@ import { Sparkles, Loader2, Save, Check, Crown, Download, BookOpen } from 'lucid
 import Link from 'next/link';
 import api from '@/services/api';
 import { useToast } from '@/components/ui/Toast';
-import { marked } from 'marked';
 import SubjectSelector from '@/components/ui/SubjectSelector';
 import NoteBook from '@/components/creative/NoteBook';
 
@@ -37,13 +35,22 @@ function Inner() {
   const printRef = useRef(null);
 
   const [isPremium, setIsPremium] = useState(null);
-  const [topic,   setTopic]   = useState(sp?.get('topic') || '');
-  const [subject, setSubject] = useState(sp?.get('subject') || '');
+  const [topic,   setTopic]   = useState('');
+  const [subject, setSubject] = useState('');
   const [level,   setLevel]   = useState('intermediate');
   const [notes,   setNotes]   = useState(null);
   const [loading, setLoading] = useState(false);
   const [saving,  setSaving]  = useState(false);
   const [saved,   setSaved]   = useState(false);
+
+  useEffect(() => {
+    if (sp) {
+      const t = sp.get('topic');
+      const s = sp.get('subject');
+      if (t) setTopic(t);
+      if (s) setSubject(s);
+    }
+  }, [sp]);
 
   useEffect(() => {
     api.get('/premium/status')
